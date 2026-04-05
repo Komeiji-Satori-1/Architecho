@@ -45,11 +45,11 @@
           <!-- Left: Stamp Progress -->
           <div class="lg:col-span-4">
             <StampLayer 
-              title="应县木塔"
-              :progress="60"
-              :collected="6"
-              :total="10"
-              description="距离解锁“木构大师”称号还需收集 4 枚印记。本周任务：完成五台山建筑群打卡。"
+              :title="stampProgress.title"
+              :progress="stampProgress.progress"
+              :collected="stampProgress.collected"
+              :total="stampProgress.total"
+              :description="stampProgress.description"
               @click="handleStampClick"
             />
           </div>
@@ -203,7 +203,13 @@ import StampLayer from '@/components/StampLayer.vue';
 
 const router = useRouter();
 
-// ─── 响应式数据 ─────────────────────────────────────────────────────
+// ─── 响应式数据 ─────────────────────────────────────────────────────const stampProgress = ref({
+  title: '应县木塔',
+  progress: 0,
+  collected: 0,
+  total: 10,
+  description: '登录后查看你的个人集章进度。',
+});
 const hero = ref<{
   id?: number;
   name?: string;
@@ -225,8 +231,22 @@ onMounted(async () => {
     fetchHero(),
     fetchHotTopics(),
     fetchCoNews(),
+    fetchStampProgress(),
   ]);
 });
+
+async function fetchStampProgress() {
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/stamps/my-progress/', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    stampProgress.value = res.data;
+  } catch {
+    // 未收集印章或 token 过期时保持默认占位
+  }
+}
 
 async function fetchHero() {
   try {

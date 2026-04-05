@@ -21,7 +21,7 @@
                   {{ cat.name }}
                   <span v-if="cat.hot" class="ml-2 px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] rounded uppercase">Hot</span>
                 </span>
-                <span class="text-[10px] text-secondary/40">{{ cat.count }}</span>
+                <span class="text-[10px] text-secondary/40">{{ cat.post_count }}</span>
               </button>
             </div>
           </div>
@@ -63,55 +63,23 @@
           </div>
 
           <!-- Posts -->
-          <div class="space-y-4">
-            <div 
-              v-for="post in filteredPosts" 
-              :key="post.id"
-              class="bg-white rounded-xl p-6 border border-outline-variant/10 hover:shadow-md transition-all cursor-pointer group"
-              @click="goToDetail(post.id)"
-            >
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center space-x-3">
-                  <div class="relative">
-                    <img :src="post.authorAvatar" class="w-10 h-10 rounded-full object-cover" referrerpolicy="no-referrer" />
-                    <!-- SVG Badge Placeholder -->
-                    <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
-                      <StampIcon class="w-2.5 h-2.5 text-primary" />
-                    </div>
-                  </div>
-                  <div>
-                    <div class="flex items-center">
-                      <span class="text-sm font-bold text-on-surface mr-2">{{ post.author }}</span>
-                      <span v-if="post.isTop" class="px-1.5 py-0.5 bg-primary text-white text-[8px] rounded font-bold uppercase tracking-widest mr-1">置顶</span>
-                      <span v-if="post.isEssence" class="px-1.5 py-0.5 bg-tertiary text-white text-[8px] rounded font-bold uppercase tracking-widest">精</span>
-                    </div>
-                    <p class="text-[10px] text-secondary/40 uppercase tracking-widest">{{ post.time }} · {{ post.category }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <h3 class="font-serif text-xl mb-3 group-hover:text-primary transition-colors">{{ post.title }}</h3>
-              <p class="text-secondary/70 text-sm line-clamp-2 mb-4 leading-relaxed">
-                {{ post.excerpt }}
-              </p>
-
-              <!-- Image Gallery (Optional) -->
-              <div v-if="post.images && post.images.length" class="grid grid-cols-3 gap-2 mb-4 rounded-lg overflow-hidden">
-                <img 
-                  v-for="(img, idx) in post.images.slice(0, 3)" 
-                  :key="idx" 
-                  :src="img" 
-                  class="aspect-video object-cover w-full"
-                  referrerpolicy="no-referrer"
-                />
-              </div>
-
-              <div class="flex items-center space-x-6 text-secondary/40 text-xs">
-                <span class="flex items-center"><EyeIcon class="w-3.5 h-3.5 mr-1.5" /> {{ post.views }}</span>
-                <span class="flex items-center"><HeartIcon class="w-3.5 h-3.5 mr-1.5" /> {{ post.likes }}</span>
-                <span class="flex items-center"><MessageSquareIcon class="w-3.5 h-3.5 mr-1.5" /> {{ post.comments }}</span>
+          <div v-if="postsLoading" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div v-for="i in 4" :key="i" class="bg-white rounded-xl overflow-hidden border border-outline-variant/10 animate-pulse">
+              <div class="aspect-[4/3] bg-secondary/5"></div>
+              <div class="p-6 space-y-3">
+                <div class="h-4 bg-secondary/5 rounded w-3/4"></div>
+                <div class="h-3 bg-secondary/5 rounded w-1/2"></div>
               </div>
             </div>
+          </div>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <PostCard
+              v-for="post in filteredPosts"
+              :key="post.id"
+              :post="post"
+              @click="goToDetail"
+            />
+            <p v-if="filteredPosts.length === 0" class="col-span-2 text-center text-secondary/40 text-sm py-12">暂无相关帖子</p>
           </div>
         </main>
 
@@ -157,94 +125,86 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { 
-  TrendingUp as TrendingUpIcon, 
+import axios from 'axios';
+import {
+  TrendingUp as TrendingUpIcon,
   Search as SearchIcon,
-  Eye as EyeIcon,
-  Heart as HeartIcon,
-  MessageSquare as MessageSquareIcon,
-  Stamp as StampIcon
+  Stamp as StampIcon,
 } from 'lucide-vue-next';
+import PostCard from '@/components/PostCard.vue';
 
 const router = useRouter();
-const activeCategory = ref('营造法式');
+const activeCategory = ref('');
 const activeTab = ref('全部动态');
 const searchQuery = ref('');
-
-const categories = [
-  { name: '营造法式', count: '2.4k', hot: true },
-  { name: '古建摄影', count: '1.8k', hot: false },
-  { name: '模型制作', count: '920', hot: false },
-  { name: '木作工艺', count: '640', hot: false },
-  { name: '彩画装饰', count: '420', hot: false }
-];
+const postsLoading = ref(true);
 
 const tabs = ['全部动态', '精华帖', '最新发布'];
 
-const posts = [
-  {
-    id: 1,
-    title: '解析《营造法式》中的斗拱模数化设计',
-    excerpt: '宋代建筑的标准化程度令人惊叹，本文将从材份制入手，详细拆解十一踩斗拱的受力结构与视觉比例关系...',
-    author: '营造大师_老李',
-    authorAvatar: 'https://picsum.photos/seed/user1/100/100',
-    category: '营造法式',
-    time: '3小时前',
-    views: '1.2w',
-    likes: '856',
-    comments: 142,
-    isTop: true,
-    isEssence: true
-  },
-  {
-    id: 2,
-    title: '【摄影集】午后三点的故宫红墙影',
-    excerpt: '光影在斑驳的红墙上流转，仿佛能听到历史的呼吸。这组照片尝试捕捉那种静谧而厚重的力量感。',
-    author: '光影筑梦师',
-    authorAvatar: 'https://picsum.photos/seed/user2/100/100',
-    category: '古建摄影',
-    time: '昨天',
-    views: '3.4k',
-    likes: '512',
-    comments: 89,
-    images: [
-      'https://picsum.photos/seed/p1/400/300',
-      'https://picsum.photos/seed/p2/400/300',
-      'https://picsum.photos/seed/p3/400/300'
-    ]
-  },
-  {
-    id: 3,
-    title: '手作：1/20 祈年殿全榫卯模型进度更新',
-    excerpt: '耗时三个月，完成了最底层的台基与一楼柱网，不含一颗铁钉，全部由微型榫卯结构嵌套而成。',
-    author: '墨染木意',
-    authorAvatar: 'https://picsum.photos/seed/user3/100/100',
-    category: '模型制作',
-    time: '2天前',
-    views: '5.1k',
-    likes: '1.2k',
-    comments: 234,
-    isEssence: true
-  }
-];
+// ─── 分类（来自数据库） ─────────────────────────────────────────
+const categories = ref<{ id: number; name: string; hot: boolean; post_count: number }[]>([]);
 
+async function fetchCategories() {
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/forum/categories/');
+    categories.value = res.data.results ?? res.data;
+    if (categories.value.length && !activeCategory.value) {
+      activeCategory.value = categories.value[0].name;
+    }
+  } catch {
+    categories.value = [];
+  }
+}
+
+// ─── 帖子（来自数据库） ─────────────────────────────────────────
+const posts = ref<any[]>([]);
+
+async function fetchPosts() {
+  postsLoading.value = true;
+  try {
+    const params: Record<string, string | number> = {};
+    const cat = categories.value.find(c => c.name === activeCategory.value);
+    if (cat) params.category = cat.id;
+    if (activeTab.value === '精华帖') params.is_essence = 'true';
+    if (activeTab.value === '最新发布') params.ordering = '-created_at';
+    const res = await axios.get('http://127.0.0.1:8000/api/forum/posts/', { params });
+    posts.value = res.data.results ?? res.data;
+  } catch {
+    posts.value = [];
+  } finally {
+    postsLoading.value = false;
+  }
+}
+
+onMounted(async () => {
+  await fetchCategories();
+  await fetchPosts();
+});
+
+watch([activeCategory, activeTab], () => {
+  fetchPosts();
+});
+
+// ─── 活跃榜（待 users API 扩展后对接，暂用占位数据） ───────────────────
 const topUsers = [
   { name: '云栖墨客', power: '9.8k', avatar: 'https://picsum.photos/seed/u1/100/100', badges: 3 },
   { name: '木构灵魂', power: '8.2k', avatar: 'https://picsum.photos/seed/u2/100/100', badges: 2 },
-  { name: '丹青绘影', power: '7.5k', avatar: 'https://picsum.photos/seed/u3/100/100', badges: 2 }
+  { name: '丹青绘影', power: '7.5k', avatar: 'https://picsum.photos/seed/u3/100/100', badges: 2 },
 ];
 
+// ─── 搜索（客户端过滤） ──────────────────────────────────────────
 const filteredPosts = computed(() => {
-  return posts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
-                         post.excerpt.toLowerCase().includes(searchQuery.value.toLowerCase());
-    return matchesSearch;
-  });
+  if (!searchQuery.value) return posts.value;
+  const q = searchQuery.value.toLowerCase();
+  return posts.value.filter(
+    p => p.title.toLowerCase().includes(q) || (p.excerpt ?? '').toLowerCase().includes(q),
+  );
 });
 
 const goToDetail = (id: number) => {
   router.push(`/forum/${id}`);
 };
 </script>
+

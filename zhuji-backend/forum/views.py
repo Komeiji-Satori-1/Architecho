@@ -43,10 +43,16 @@ class ForumPostViewSet(viewsets.ModelViewSet):
         return ForumPostListSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().order_by('-created_at')
         category = self.request.query_params.get('category')
         if category:
             qs = qs.filter(category__id=category)
+        is_essence = self.request.query_params.get('is_essence')
+        if is_essence == 'true':
+            qs = qs.filter(is_essence=True)
+        ordering = self.request.query_params.get('ordering')
+        if ordering in ('-created_at', 'created_at', '-views', 'views'):
+            qs = qs.order_by(ordering)
         return qs
 
 

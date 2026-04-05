@@ -5,13 +5,13 @@
   >
     <div class="aspect-[4/3] overflow-hidden relative">
       <img 
-        :src="post.cover" 
+        :src="post.cover || 'https://picsum.photos/seed/forum/400/300'" 
         :alt="post.title" 
         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         referrerpolicy="no-referrer"
       />
       <div class="absolute top-4 left-4 bg-primary/90 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest">
-        {{ post.category }}
+        {{ post.category_name }}
       </div>
     </div>
     
@@ -33,7 +33,7 @@
             <EyeIcon class="w-3 h-3 mr-1" /> {{ post.views }}
           </span>
           <span class="flex items-center">
-            <MessageSquareIcon class="w-3 h-3 mr-1" /> {{ post.comments }}
+            <MessageSquareIcon class="w-3 h-3 mr-1" /> {{ post.comment_count }}
           </span>
         </div>
       </div>
@@ -47,11 +47,12 @@ import { Eye as EyeIcon, MessageSquare as MessageSquareIcon } from 'lucide-vue-n
 interface Post {
   id: number;
   title: string;
-  cover: string;
-  category: string;
+  cover: string | null;
+  category_name: string;
   author: string;
-  views: string;
-  comments: number;
+  author_avatar?: string | null;
+  views: number;
+  comment_count: number;
 }
 
 const props = defineProps<{

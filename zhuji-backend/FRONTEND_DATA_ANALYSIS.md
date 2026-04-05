@@ -494,3 +494,55 @@ system/
 ---
 
 _本文档由代码分析自动生成，应随前端迭代同步更新。_
+
+---
+
+## 四、已实现 API 接口对照（2026-04-05 更新）
+
+### 4.1 已上线接口
+
+| 接口 | 方法 | 路径 | 对应组件 | 说明 |
+|---|---|---|---|---|
+| 精选古建 | GET | `/api/monuments/featured/` | `Home.vue` Hero 区 | 最新 `is_published=True` 的 Monument |
+| 论坛热门 | GET | `/api/forum/hot-topics/` | `Home.vue` 热门话题栏 | 按 views 降序取前 5 |
+| 共创动态 | GET | `/api/cocreation/recent-news/` | `Home.vue` 共创动态栏 | `status=adopted` 最近 2 条 |
+| 集章进度 | GET | `/api/stamps/my-progress/` | `Home.vue` StampLayer 组件 | 需 JWT，返回用户进度最深的印章 |
+| 论坛分类 | GET | `/api/forum/categories/` | `ForumList.vue` 左侧分类栏 | 全部分类，含 post_count |
+| 论坛帖子 | GET | `/api/forum/posts/` | `ForumList.vue` + `PostCard.vue` | 支持 `?category=id&is_essence=true&ordering=-created_at` |
+| 帖子详情 | GET | `/api/forum/posts/:id/` | `PostDetail.vue` | ForumPostDetailSerializer |
+| 评论列表 | GET | `/api/forum/comments/?post=id` | `PostDetail.vue` | 含嵌套 replies |
+| 用户登录 | POST | `/api/users/login/` | `AuthModal.vue` | 返回 JWT access + refresh + user info |
+| 当前用户 | GET | `/api/users/me/` | 全局登录态检测 | 需 JWT |
+| Token 刷新 | POST | `/api/users/token/refresh/` | axios 拦截器（待实现） | — |
+
+### 4.2 前端组件字段映射更新
+
+#### PostCard.vue（已更新 interface）
+| 前端字段 | 后端字段（ForumPostListSerializer） | 说明 |
+|---|---|---|
+| `title` | `title` | — |
+| `cover` | `cover`（ImageField URL，可 null） | null 时前端显示占位图 |
+| `category_name` | `category_name` | ~~原 `category`~~ |
+| `author` | `author`（username） | — |
+| `author_avatar` | `author_avatar`（可 null） | — |
+| `views` | `views`（number） | ~~原 string~~ |
+| `comment_count` | `comment_count` | ~~原 `comments`~~ |
+
+#### StampLayer.vue（已动态化）
+| 前端 prop | 后端字段（StampProgressSerializer） | 说明 |
+|---|---|---|
+| `title` | `stamp.name` | — |
+| `progress` | `(unlocked_layers / total_layers) * 100` | 0-100 整数 |
+| `collected` | `unlocked_layers` | — |
+| `total` | `stamp.total_layers` | — |
+| `description` | 自动生成文案 | 剩余层数提示 |
+
+### 4.3 待接入接口（暂用占位数据）
+
+| 组件/功能 | 期望接口 | 当前状态 |
+|---|---|---|
+| `ForumList.vue` 活跃榜 topUsers | `GET /api/users/top-users/` | 占位数据 |
+| `PostDetail.vue` 帖子内容 | `GET /api/forum/posts/:id/` | 硬编码 |
+| `StampDiscovery.vue` 古建列表 | `GET /api/monuments/` | 硬编码 |
+| `CoCreation.vue` 共创列表 | `GET /api/cocreation/items/` | 硬编码 |
+| `UserProfile.vue` 用户信息 | `GET /api/users/me/` | 硬编码 |
