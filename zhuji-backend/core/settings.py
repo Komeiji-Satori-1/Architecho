@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # 第三方
     'corsheaders',
     'rest_framework',
+    'rest_framework_simplejwt',
     # 项目模块
     'users',
     'monuments',
@@ -168,6 +169,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',

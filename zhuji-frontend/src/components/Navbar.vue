@@ -25,14 +25,14 @@
           <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary/40" />
         </div>
         
-        <router-link 
-          to="/profile"
+        <button
+          @click="handleUserClick"
           class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center hover:bg-secondary/20 transition-all relative group"
         >
           <UserIcon class="w-5 h-5 text-secondary group-hover:text-primary transition-colors" />
           <!-- Notification Red Dot -->
           <div class="absolute top-0 right-0 w-2.5 h-2.5 bg-primary rounded-full border-2 border-white"></div>
-        </router-link>
+        </button>
       </div>
     </div>
   </nav>
@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { Search as SearchIcon, User as UserIcon } from 'lucide-react';
+import { Search as SearchIcon, User as UserIcon } from 'lucide-vue-next';
 
 const router = useRouter();
 const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
@@ -58,5 +58,13 @@ const navigate = (path: string) => {
 
 const openAuth = () => {
   if (toggleAuth) toggleAuth(true);
+};
+
+const handleUserClick = () => {
+  if (localStorage.getItem('access_token')) {
+    router.push('/profile');
+  } else {
+    openAuth();
+  }
 };
 </script>

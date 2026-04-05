@@ -22,7 +22,8 @@
           <div class="space-y-2 text-left">
             <label class="text-xs font-bold text-secondary/40 uppercase tracking-tighter">账号 / 手机号</label>
             <input 
-              type="text" 
+              type="text"
+              v-model="username" 
               class="w-full border-b border-outline-variant py-2 focus:outline-none focus:border-primary transition-colors bg-transparent"
               placeholder="请输入您的账号"
             />
@@ -32,6 +33,7 @@
             <label class="text-xs font-bold text-secondary/40 uppercase tracking-tighter">密码</label>
             <input 
               type="password" 
+              v-model="password"
               class="w-full border-b border-outline-variant py-2 focus:outline-none focus:border-primary transition-colors bg-transparent"
               placeholder="请输入您的密码"
             />
@@ -61,21 +63,33 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import axios from 'axios';
 
-defineEmits(['close']);
+const emit = defineEmits(['close']);
 
 const isOpen = ref(false);
+const username = ref('');
+const password = ref('');
 
 onMounted(() => {
-  // 模拟卷轴展开动效
   setTimeout(() => {
     isOpen.value = true;
   }, 50);
 });
 
-const handleLogin = () => {
-  console.log('Login triggered');
-  // TODO: 实现真实登录逻辑
+const handleLogin = async () => {
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/api/users/login/', {
+      username: username.value,
+      password: password.value,
+    });
+    localStorage.setItem('access_token', response.data.access);
+    localStorage.setItem('refresh_token', response.data.refresh);
+    emit('close');
+    window.location.reload();
+  } catch {
+    alert('账号或密码错误，请重新输入');
+  }
 };
 </script>
 
@@ -88,3 +102,4 @@ const handleLogin = () => {
   max-height: 600px;
 }
 </style>
+

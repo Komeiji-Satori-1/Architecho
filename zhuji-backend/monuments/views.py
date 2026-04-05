@@ -1,5 +1,5 @@
 from rest_framework import viewsets, permissions, status, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from .models import Monument, ArticleSubmission
 from .serializers import (
@@ -8,6 +8,20 @@ from .serializers import (
     SubmissionDetailSerializer,
     SubmissionAuditSerializer,
 )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def featured_monument(request):
+    """
+    首页 Hero 推荐古建：返回最新发布的一条。
+    GET /api/monuments/featured/
+    """
+    monument = Monument.objects.filter(is_published=True).order_by('-created_at').first()
+    if not monument:
+        return Response({'detail': '暂无推荐古建。'}, status=404)
+    serializer = MonumentSerializer(monument, context={'request': request})
+    return Response(serializer.data)
 
 
 class MonumentViewSet(viewsets.ModelViewSet):

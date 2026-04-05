@@ -1,6 +1,9 @@
+from django.contrib.auth import authenticate
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 from .serializers import UserListSerializer, UserDetailSerializer
 
@@ -65,3 +68,60 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save(update_fields=['role'])
         serializer = UserDetailSerializer(user, context={'request': request})
         return Response(serializer.data)
+
+
+class LoginView(APIView):
+    """登录接口：POST /api/users/login/ → 返回 JWT access + refresh token。"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '')
+
+        if not username or not password:
+            return Response(
+                {'detail': '请填写账号和密码。'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            return Response(
+                {'detail': '账号或密码错误。'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        if not user.is_active:
+            return Response(
+                {'detail': '账号已被封禁，请联系管理员。'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'avatar': request.build_absolute_uri(user.avatar.url) if user.avatar else None,
+                'role': user.role,
+                'level_title': user.level_title,
+            },
+        })
+
+
+class MeView(APIView):
+    """当前用户信息：GET /api/users/me/ → 验证 Token 并返回用户资料。"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'avatar': request.build_absolute_uri(user.avatar.url) if user.avatar else None,
+            'role': user.role,
+            'level_title': user.level_title,
+            'level_num': user.level_num,
+            'influence_power': user.influence_power,
+        })

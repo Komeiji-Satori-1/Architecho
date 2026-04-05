@@ -1,0 +1,66 @@
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from .models import ForumCategory, ForumPost, Comment
+from .serializers import (
+    ForumCategorySerializer,
+    ForumPostHotSerializer,
+    ForumPostListSerializer,
+    ForumPostDetailSerializer,
+    CommentSerializer,
+)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def hot_topics(request):
+    """
+    首页热门话题：按浏览量降序取前 5 篇。
+    GET /api/forum/hot-topics/
+    返回：[{id, title, author, reads}, ...]
+    """
+    posts = (
+        ForumPost.objects.select_related('author')
+        .order_by('-views')[:5]
+    )
+    serializer = ForumPostHotSerializer(posts, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+class ForumCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ForumCategory.objects.all()
+    serializer_class = ForumCategorySerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class ForumPostViewSet(viewsets.ModelViewSet):
+    queryset = ForumPost.objects.select_related('author', 'category').all()
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ForumPostDetailSerializer
+        return ForumPostListSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        category = self.request.query_params.get('category')
+        if category:
+            qs = qs.filter(category__id=category)
+        return qs
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    queryset = Comment.objects.select_related('author').filter(parent=None)
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        post_id = self.request.query_params.get('post')
+        if post_id:
+            qs = qs.filter(post__id=post_id)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)

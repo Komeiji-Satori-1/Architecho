@@ -135,6 +135,7 @@
 
               <button 
                 type="submit"
+
                 class="w-full py-5 bg-primary text-white font-bold rounded-xl shadow-xl shadow-primary/20 hover:bg-primary-container transition-all"
               >
                 提交申请
@@ -201,24 +202,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, inject ,onMounted} from 'vue';
 import { 
   Heart as HeartIcon, 
   ChevronDown as ChevronDownIcon, 
   PlusCircle as PlusCircleIcon,
   Image as ImageIcon,
   X as XIcon
-} from 'lucide-react';
+} from 'lucide-vue-next';
 
 const activeTab = ref('众创灵感');
-
+const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
 const form = reactive({
   name: '',
   material: '原木',
   desc: '',
   images: [] as string[]
 });
-
+onMounted(() => {
+  if (!localStorage.getItem('access_token')) {
+    toggleAuth?.(true);
+  }
+});
 const coCreations = [
   { id: 1, title: '榫卯折叠案几', author: '林清川', avatar: 'https://picsum.photos/seed/u1/100/100', likes: '1.2k', image: 'https://picsum.photos/seed/c1/600/800', featured: true },
   { id: 2, title: '窗棂系列耳饰', author: '九灯', avatar: 'https://picsum.photos/seed/u2/100/100', likes: '2.4k', image: 'https://picsum.photos/seed/c2/600/600' },
@@ -239,8 +244,18 @@ const addImage = () => {
 const removeImage = (idx: number) => {
   form.images.splice(idx, 1);
 };
-
+const requireAuth = (callback: () => void) => {
+  if (!localStorage.getItem('access_token')) {
+    toggleAuth?.(true);
+    return;
+  }
+  callback();
+};
 const handleSubmit = () => {
+  if (!localStorage.getItem('access_token')) {
+    toggleAuth?.(true);
+    return;
+  };
   console.log('Form submitted:', form);
   alert('创意已提交，请耐心等待官方初审。');
   form.name = '';

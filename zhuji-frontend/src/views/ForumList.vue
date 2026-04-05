@@ -166,7 +166,7 @@ import {
   Heart as HeartIcon,
   MessageSquare as MessageSquareIcon,
   Stamp as StampIcon
-} from 'lucide-react';
+} from 'lucide-vue-next';
 
 const router = useRouter();
 const activeCategory = ref('营造法式');

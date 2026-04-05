@@ -180,7 +180,7 @@ import {
   Info as InfoIcon,
   Ticket as TicketIcon,
   Award as AwardIcon
-} from 'lucide-react';
+} from 'lucide-vue-next';
 
 const activeSection = ref('dashboard');
 

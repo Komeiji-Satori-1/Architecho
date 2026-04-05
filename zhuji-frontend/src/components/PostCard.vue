@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { Eye as EyeIcon, MessageSquare as MessageSquareIcon } from 'lucide-react';
+import { Eye as EyeIcon, MessageSquare as MessageSquareIcon } from 'lucide-vue-next';
 
 interface Post {
   id: number;

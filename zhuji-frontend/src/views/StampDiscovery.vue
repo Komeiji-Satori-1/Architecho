@@ -222,13 +222,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, inject, onMounted } from 'vue';
 import { 
   ArrowRight as ArrowRightIcon, 
   Pen as PenIcon, 
   X as XIcon, 
   Download as DownloadIcon 
-} from 'lucide-react';
+} from 'lucide-vue-next';
+
+const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
 
 const unlockedLayers = ref(1);
 const selectedBuilding = ref<any>(null);
@@ -280,6 +282,12 @@ const stampSteps = [
   { name: '第二层：朱砂描红', color: '#970010' },
   { name: '第三层：琉璃缀金', color: '#624300' }
 ];
+
+onMounted(() => {
+  if (!localStorage.getItem('access_token')) {
+    toggleAuth?.(true);
+  }
+});
 
 const openArchive = (building: any) => {
   selectedBuilding.value = building;

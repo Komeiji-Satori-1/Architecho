@@ -47,8 +47,9 @@
 </template>
 
 <script setup lang="ts">
-import { Stamp as StampIcon, ArrowRight as ArrowRightIcon } from 'lucide-react';
-
+import { Stamp as StampIcon, ArrowRight as ArrowRightIcon } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
+const router = useRouter();
 defineProps<{
   title: string;
   progress: number;
@@ -60,7 +61,6 @@ defineProps<{
 const emit = defineEmits(['click']);
 
 const handleClick = () => {
-  emit('click');
-  // TODO: 跳转至详情页
+  router.push('/stamps');
 };
 </script>

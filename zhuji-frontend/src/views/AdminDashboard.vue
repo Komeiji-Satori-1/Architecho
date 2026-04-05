@@ -249,7 +249,7 @@ import {
   X as XIcon,
   Image as ImageIcon,
   CheckCircle as CheckCircleIcon
-} from 'lucide-react';
+} from 'lucide-vue-next';
 
 const activeTab = ref('dashboard');
 

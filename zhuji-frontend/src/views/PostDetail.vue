@@ -65,10 +65,10 @@
 
           <div class="mt-12 pt-12 border-t border-outline-variant/10 flex items-center justify-between">
             <div class="flex items-center space-x-8">
-              <button class="flex items-center text-secondary/40 hover:text-primary transition-colors">
+              <button @click="handleLike" class="flex items-center text-secondary/40 hover:text-primary transition-colors">
                 <HeartIcon class="w-5 h-5 mr-2" /> <span class="text-sm">{{ post.likes }}</span>
               </button>
-              <button class="flex items-center text-secondary/40 hover:text-primary transition-colors">
+              <button @click="handleShare" class="flex items-center text-secondary/40 hover:text-primary transition-colors">
                 <ShareIcon class="w-5 h-5 mr-2" /> <span class="text-sm">分享</span>
               </button>
             </div>
@@ -126,7 +126,7 @@
                   <p class="text-sm text-secondary/80 leading-relaxed mb-4">{{ comment.text }}</p>
                   
                   <div class="flex items-center space-x-6 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">
-                    <button class="hover:text-primary transition-colors">赞同 ({{ comment.likes }})</button>
+                    <button @click="handleCommentLike" class="hover:text-primary transition-colors">赞同 ({{ comment.likes }})</button>
                     <button class="hover:text-primary transition-colors" @click="replyTo(comment)">回复</button>
                     <button v-if="isAdmin" class="text-red-400 hover:text-red-600 transition-colors">删除</button>
                   </div>
@@ -144,8 +144,8 @@
                         <p class="text-xs text-secondary/70 leading-relaxed">{{ reply.text }}</p>
                         <div class="mt-2 flex items-center space-x-4 text-[9px] font-bold text-secondary/30 uppercase tracking-widest">
                           <span>{{ reply.time }}</span>
-                          <button class="hover:text-primary">赞同</button>
-                          <button class="hover:text-primary">回复</button>
+                          <button class="hover:text-primary" @click="handleCommentLike">赞同</button>
+                          <button class="hover:text-primary" @click="replyTo(reply)">回复</button>
                         </div>
                       </div>
                     </div>
@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, inject, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   Heart as HeartIcon, 
@@ -173,10 +173,20 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   AtSign as AtSignIcon
-} from 'lucide-react';
+} from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
+const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
+
+const requireAuth = (callback: () => void) => {
+  if (!localStorage.getItem('access_token')) {
+    toggleAuth?.(true);
+    return;
+  }
+  callback();
+};
+
 const isAdmin = ref(true); // 模拟管理员权限
 const commentInput = ref('');
 const hasDraft = ref(false);
@@ -251,35 +261,43 @@ const saveDraft = () => {
 };
 
 const submitComment = () => {
-  if (!commentInput.value.trim()) return;
-  
-  console.log('Submitting comment:', commentInput.value);
-  // TODO: 实现真实提交逻辑
-  
-  localStorage.removeItem(`post_draft_${route.params.id}`);
-  commentInput.value = '';
-  hasDraft.value = false;
-  alert('见解已发布！');
+  requireAuth(() => {
+    if (!commentInput.value.trim()) return;
+    console.log('Submitting comment:', commentInput.value);
+    // TODO: 实现真实提交逻辑
+    localStorage.removeItem(`post_draft_${route.params.id}`);
+    commentInput.value = '';
+    hasDraft.value = false;
+    alert('见解已发布！');
+  });
 };
 
 const togglePin = () => {
-  post.value.isTop = !post.value.isTop;
+  requireAuth(() => { post.value.isTop = !post.value.isTop; });
 };
 
 const toggleEssence = () => {
-  post.value.isEssence = !post.value.isEssence;
+  requireAuth(() => { post.value.isEssence = !post.value.isEssence; });
 };
 
 const handleDelete = () => {
-  if (confirm('确定要删除这篇传世之作吗？')) {
-    console.log('Post deleted');
-    router.push('/forum');
-  }
+  requireAuth(() => {
+    if (confirm('确定要删除这篇传世之作吗？')) {
+      console.log('Post deleted');
+      router.push('/forum');
+    }
+  });
 };
 
+const handleLike = () => requireAuth(() => {});
+const handleShare = () => requireAuth(() => {});
+const handleCommentLike = () => requireAuth(() => {});
+
 const replyTo = (comment: any) => {
-  commentInput.value = `@${comment.author} `;
-  saveDraft();
+  requireAuth(() => {
+    commentInput.value = `@${comment.author} `;
+    saveDraft();
+  });
 };
 </script>
 

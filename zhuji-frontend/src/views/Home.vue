@@ -4,7 +4,7 @@
     <section class="relative h-[80vh] overflow-hidden bg-on-surface">
       <div class="absolute inset-0">
         <img 
-          src="https://picsum.photos/seed/architecture/1920/1080" 
+          :src="hero.cover_image || 'https://picsum.photos/seed/architecture/1920/1080'" 
           class="w-full h-full object-cover opacity-60 scale-105"
           referrerpolicy="no-referrer"
         />
@@ -16,16 +16,16 @@
           本月推荐
         </div>
         <h1 class="font-serif text-6xl md:text-8xl text-white mb-8 tracking-tight leading-tight">
-          大唐遗风：<br/>五台山佛光寺
+          {{ hero.name || '大唐遗风：五台山佛光寺' }}
         </h1>
         <p class="text-white/80 text-lg max-w-2xl mb-12 leading-relaxed font-light">
-          穿越千年的斗拱结构，触摸中华木构建筑的巅峰。加入本月共创计划，重塑经典文创，延续匠心之美。
+          {{ hero.desc || '穿越千年的斗拱结构，触摸中华木构建筑的巰峰。加入本月共创计划，重塑经典文创，延续匠心之美。' }}
         </p>
         <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
-          <button class="px-10 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary-container transition-all flex items-center">
+          <button @click="router.push('/stamps')" class="px-10 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary-container transition-all flex items-center">
             开始探索 <ArrowRightIcon class="ml-2 w-4 h-4" />
           </button>
-          <button class="px-10 py-4 bg-white/10 backdrop-blur-md text-white font-bold rounded-lg hover:bg-white/20 transition-all border border-white/20">
+          <button @click="router.push('/stamps')" class="px-10 py-4 bg-white/10 backdrop-blur-md text-white font-bold rounded-lg hover:bg-white/20 transition-all border border-white/20">
             了解集章
           </button>
         </div>
@@ -60,11 +60,26 @@
               <h2 class="font-serif text-3xl flex items-center">
                 <MessageSquareIcon class="w-6 h-6 mr-3 text-primary" /> 筑匠论坛热门
               </h2>
-              <a href="#" class="text-xs font-bold text-primary hover:underline">查看全部</a>
+              <a href="#" class="text-xs font-bold text-primary hover:underline" @click.prevent="router.push('/forum')">查看全部</a>
             </div>
             
-            <div class="space-y-8">
-              <div v-for="(topic, index) in hotTopics" :key="index" class="flex items-start group cursor-pointer">
+            <!-- 加载骨架 -->
+            <div v-if="hotTopicsLoading" class="space-y-8">
+              <div v-for="i in 4" :key="i" class="flex items-start">
+                <div class="w-12 h-10 bg-secondary/5 rounded mr-6 animate-pulse"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 bg-secondary/5 rounded animate-pulse"></div>
+                  <div class="h-3 w-1/2 bg-secondary/5 rounded animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="space-y-8">
+              <div 
+                v-for="(topic, index) in hotTopics" :key="topic.id" 
+                class="flex items-start group cursor-pointer"
+                @click="router.push(`/forum/${topic.id}`)"
+              >
                 <span class="font-serif text-4xl text-secondary/10 mr-6 group-hover:text-primary/20 transition-colors">0{{ index + 1 }}</span>
                 <div>
                   <h3 class="font-serif text-lg mb-2 group-hover:text-primary transition-colors">{{ topic.title }}</h3>
@@ -74,6 +89,7 @@
                   </div>
                 </div>
               </div>
+              <p v-if="!hotTopicsLoading && hotTopics.length === 0" class="text-secondary/40 text-sm">暂无热门话题</p>
             </div>
           </div>
 
@@ -83,27 +99,31 @@
               <div class="relative z-10">
                 <h2 class="font-serif text-2xl mb-8">共创动态</h2>
                 
-                <div class="space-y-8">
-                  <div class="p-4 bg-white/10 rounded-xl border border-white/10">
-                    <div class="flex items-center text-[10px] font-bold uppercase tracking-widest mb-2">
-                      <CheckCircleIcon class="w-3 h-3 mr-2" /> 官方采纳
-                    </div>
-                    <p class="text-xs text-white/80 leading-relaxed">
-                      用户 @墨香 提交的“天坛祈年殿积木套装”已被列入试产计划。
-                    </p>
-                  </div>
-                  
-                  <div class="p-4 bg-white/10 rounded-xl border border-white/10">
-                    <div class="flex items-center text-[10px] font-bold uppercase tracking-widest mb-2">
-                      <MegaphoneIcon class="w-3 h-3 mr-2" /> 新挑战开启
-                    </div>
-                    <p class="text-xs text-white/80 leading-relaxed">
-                      “宋代园林主题”周边设计挑战赛今日正式启动。
-                    </p>
+                <!-- 加载骨架 -->
+                <div v-if="coNewsLoading" class="space-y-8">
+                  <div v-for="i in 2" :key="i" class="p-4 bg-white/10 rounded-xl border border-white/10 space-y-2">
+                    <div class="h-3 w-1/3 bg-white/20 rounded animate-pulse"></div>
+                    <div class="h-3 bg-white/10 rounded animate-pulse"></div>
+                    <div class="h-3 w-3/4 bg-white/10 rounded animate-pulse"></div>
                   </div>
                 </div>
 
-                <button class="w-full mt-12 py-4 bg-white text-primary font-bold rounded-lg hover:bg-surface transition-all flex items-center justify-center">
+                <div v-else class="space-y-8">
+                  <div v-for="item in coNews" :key="item.id" class="p-4 bg-white/10 rounded-xl border border-white/10">
+                    <div class="flex items-center text-[10px] font-bold uppercase tracking-widest mb-2">
+                      <CheckCircleIcon class="w-3 h-3 mr-2" /> {{ item.label }}
+                    </div>
+                    <p class="text-xs text-white/80 leading-relaxed">{{ item.content }}</p>
+                  </div>
+                  <div v-if="!coNewsLoading && coNews.length === 0" class="p-4 bg-white/10 rounded-xl border border-white/10">
+                    <div class="flex items-center text-[10px] font-bold uppercase tracking-widest mb-2">
+                      <MegaphoneIcon class="w-3 h-3 mr-2" /> 敬请期待
+                    </div>
+                    <p class="text-xs text-white/80 leading-relaxed">更多共创动态即将开启。</p>
+                  </div>
+                </div>
+
+                <button @click="router.push('/co-creation')" class="w-full mt-12 py-4 bg-white text-primary font-bold rounded-lg hover:bg-surface transition-all flex items-center justify-center">
                   <PenToolIcon class="w-4 h-4 mr-2" /> 我也要贡献灵感
                 </button>
               </div>
@@ -124,7 +144,7 @@
           <div class="lg:w-1/2 relative">
             <div class="aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl">
               <img 
-                src="https://picsum.photos/seed/roof/800/1200" 
+                :src="hero.cover_image || 'https://picsum.photos/seed/roof/800/1200'" 
                 class="w-full h-full object-cover"
                 referrerpolicy="no-referrer"
               />
@@ -168,7 +188,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import { 
   ArrowRight as ArrowRightIcon, 
   MessageSquare as MessageSquareIcon,
@@ -176,19 +198,69 @@ import {
   Megaphone as MegaphoneIcon,
   PenTool as PenToolIcon,
   Compass as CompassIcon
-} from 'lucide-react';
+} from 'lucide-vue-next';
 import StampLayer from '@/components/StampLayer.vue';
 
 const router = useRouter();
 
-const hotTopics = [
-  { title: '营造法式的构造之美：解读斗拱的数学密码', author: '梁下客', reads: '1.2k' },
-  { title: '大唐古建筑寻踪：山西那些尚未被发现的瑰宝', author: '山野行者', reads: '980' },
-  { title: '故宫红墙：寻找最完美的矿物颜料配比', author: '宫廷画师', reads: '856' }
-];
+// ─── 响应式数据 ─────────────────────────────────────────────────────
+const hero = ref<{
+  id?: number;
+  name?: string;
+  desc?: string;
+  cover_image?: string;
+  era?: string;
+  location?: string;
+}>({});
 
+const hotTopics = ref<{ id: number; title: string; author: string; reads: number }[]>([]);
+const hotTopicsLoading = ref(true);
+
+const coNews = ref<{ id: number; label: string; content: string }[]>([]);
+const coNewsLoading = ref(true);
+
+// ─── 数据拉取 ─────────────────────────────────────────────────────
+onMounted(async () => {
+  await Promise.allSettled([
+    fetchHero(),
+    fetchHotTopics(),
+    fetchCoNews(),
+  ]);
+});
+
+async function fetchHero() {
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/monuments/featured/');
+    hero.value = res.data;
+  } catch {
+    // 保持默认占位文案
+  }
+}
+
+async function fetchHotTopics() {
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/forum/hot-topics/');
+    hotTopics.value = res.data;
+  } catch {
+    hotTopics.value = [];
+  } finally {
+    hotTopicsLoading.value = false;
+  }
+}
+
+async function fetchCoNews() {
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/cocreation/recent-news/');
+    coNews.value = res.data;
+  } catch {
+    coNews.value = [];
+  } finally {
+    coNewsLoading.value = false;
+  }
+}
+
+// ─── 交互 ──────────────────────────────────────────────────────
 const handleStampClick = () => {
-  console.log('Stamp progress clicked');
-  // TODO: 跳转至详情页
+  router.push('/stamps');
 };
 </script>
