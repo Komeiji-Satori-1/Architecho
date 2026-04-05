@@ -89,7 +89,7 @@ git --version
 git clone https://github.com/<your-username>/architecho.git
 ```
 
-> 将 `<your-username>` 替换为实际的 GitHub 用户名或组织名。
+> 将 `<your-username>` 替换为你自己的实际的 GitHub 用户名或组织名。
 
 ### 3. 进入后端目录
 
@@ -125,7 +125,7 @@ source venv/bin/activate
 pip install django==6.0.3 djangorestframework==3.17.1 django-cors-headers==4.9.0 Pillow mysqlclient
 ```
 
-> **注意**：安装 `mysqlclient` 前需要本机已安装 MySQL（或其开发头文件）。Windows 用户若安装失败，可先安装 [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)，或使用预编译包：
+> **注意**：安装 `mysqlclient` 前需要本机已安装 MySQL（或其开发头文件）。！如果未安装MySQL请先进行下一步！。Windows 用户若安装失败，可先安装 [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)，或使用预编译包：
 > ```bash
 > pip install mysqlclient --only-binary :all:
 > ```
@@ -195,7 +195,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'architecho',       # 数据库名（与上方创建的一致）
         'USER': 'root',             # MySQL 用户名
-        'PASSWORD': 'your_password_here',  # 替换为你的 MySQL root 密码
+        'PASSWORD': 'your_password_here',  # 替换为你刚刚安装时设置的 MySQL root 密码
         'HOST': '127.0.0.1',
         'PORT': '3306',
         'OPTIONS': {
