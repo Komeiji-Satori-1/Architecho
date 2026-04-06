@@ -1,5 +1,5 @@
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from .models import ForumCategory, ForumPost, Comment
 from .serializers import (
@@ -7,6 +7,7 @@ from .serializers import (
     ForumPostHotSerializer,
     ForumPostListSerializer,
     ForumPostDetailSerializer,
+    ForumPostCreateSerializer,
     CommentSerializer,
 )
 
@@ -40,6 +41,8 @@ class ForumPostViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ForumPostDetailSerializer
+        if self.action == 'create':
+            return ForumPostCreateSerializer
         return ForumPostListSerializer
 
     def get_queryset(self):
@@ -56,6 +59,18 @@ class ForumPostViewSet(viewsets.ModelViewSet):
         return qs
 
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def like(self, request, pk=None):
+        """POST /api/forum/posts/:id/like/ — 点赞/取消点赞（简化版）"""
+        post = self.get_object()
+        post.likes += 1
+        post.save(update_fields=['likes'])
+        return Response({'likes': post.likes})
+
+
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.select_related('author').filter(parent=None)
     serializer_class = CommentSerializer
@@ -69,4 +84,11 @@ class CommentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        parent_id = self.request.data.get('parent')
+        parent = None
+        if parent_id:
+            try:
+                parent = Comment.objects.get(id=parent_id)
+            except Comment.DoesNotExist:
+                pass
+        serializer.save(author=self.request.user, parent=parent)

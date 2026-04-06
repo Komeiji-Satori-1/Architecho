@@ -125,3 +125,34 @@ class MeView(APIView):
             'level_num': user.level_num,
             'influence_power': user.influence_power,
         })
+class RegisterView(APIView):
+    """注册接口：POST /api/users/register/"""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '')
+        password_confirm = request.data.get('password_confirm', '')
+
+        if not username or not password:
+            return Response({'detail': '请填写账号和密码。'}, status=status.HTTP_400_BAD_REQUEST)
+        if password != password_confirm:
+            return Response({'detail': '两次密码输入不一致。'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=username).exists():
+            return Response({'detail': '该账号已被注册。'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) < 6:
+            return Response({'detail': '密码长度不能少于6位。'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(username=username, password=password)
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'avatar': None,
+                'role': user.role,
+                'level_title': user.level_title,
+            },
+        }, status=status.HTTP_201_CREATED)

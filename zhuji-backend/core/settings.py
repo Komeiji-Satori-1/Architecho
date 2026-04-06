@@ -189,3 +189,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
 ]
 CORS_ALLOW_CREDENTIALS = True
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),   # 当前改为1天
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # refresh token 30天
+}

@@ -2,7 +2,7 @@
   <div class="pt-24 pb-12 bg-surface min-h-screen">
     <div class="container mx-auto px-4">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         <!-- Left Sidebar: Categories -->
         <aside class="lg:col-span-2 space-y-6">
           <div class="bg-white rounded-xl p-6 border border-outline-variant/10 shadow-sm">
@@ -10,16 +10,14 @@
               <TrendingUpIcon class="w-4 h-4 mr-2 text-primary" /> 热门板块
             </h3>
             <div class="space-y-2">
-              <button 
-                v-for="cat in categories" 
-                :key="cat.name"
+              <button v-for="cat in categories" :key="cat.name"
                 class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all"
                 :class="activeCategory === cat.name ? 'bg-primary/5 text-primary font-bold' : 'text-secondary hover:bg-secondary/5'"
-                @click="activeCategory = cat.name"
-              >
+                @click="activeCategory = cat.name">
                 <span class="flex items-center">
                   {{ cat.name }}
-                  <span v-if="cat.hot" class="ml-2 px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] rounded uppercase">Hot</span>
+                  <span v-if="cat.hot"
+                    class="ml-2 px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] rounded uppercase">Hot</span>
                 </span>
                 <span class="text-[10px] text-secondary/40">{{ cat.post_count }}</span>
               </button>
@@ -39,32 +37,25 @@
           <!-- Filter Tabs & Search -->
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div class="flex items-center space-x-8 border-b border-outline-variant/10 flex-grow">
-              <button 
-                v-for="tab in tabs" 
-                :key="tab"
-                class="pb-3 text-sm font-medium transition-all relative"
+              <button v-for="tab in tabs" :key="tab" class="pb-3 text-sm font-medium transition-all relative"
                 :class="activeTab === tab ? 'text-primary' : 'text-secondary/60 hover:text-secondary'"
-                @click="activeTab = tab"
-              >
+                @click="activeTab = tab">
                 {{ tab }}
                 <div v-if="activeTab === tab" class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
               </button>
             </div>
-            
+
             <div class="relative">
-              <input 
-                v-model="searchQuery"
-                type="text" 
-                placeholder="搜索论坛内容..." 
-                class="bg-white border border-outline-variant/20 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/40 w-full sm:w-64 transition-all"
-              />
+              <input v-model="searchQuery" type="text" placeholder="搜索论坛内容..."
+                class="bg-white border border-outline-variant/20 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/40 w-full sm:w-64 transition-all" />
               <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary/40" />
             </div>
           </div>
 
           <!-- Posts -->
           <div v-if="postsLoading" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div v-for="i in 4" :key="i" class="bg-white rounded-xl overflow-hidden border border-outline-variant/10 animate-pulse">
+            <div v-for="i in 4" :key="i"
+              class="bg-white rounded-xl overflow-hidden border border-outline-variant/10 animate-pulse">
               <div class="aspect-[4/3] bg-secondary/5"></div>
               <div class="p-6 space-y-3">
                 <div class="h-4 bg-secondary/5 rounded w-3/4"></div>
@@ -73,18 +64,29 @@
             </div>
           </div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <PostCard
-              v-for="post in filteredPosts"
-              :key="post.id"
-              :post="post"
-              @click="goToDetail"
-            />
-            <p v-if="filteredPosts.length === 0" class="col-span-2 text-center text-secondary/40 text-sm py-12">暂无相关帖子</p>
+            <PostCard v-for="post in filteredPosts" :key="post.id" :post="post" @click="goToDetail" />
+            <p v-if="filteredPosts.length === 0" class="col-span-2 text-center text-secondary/40 text-sm py-12">暂无相关帖子
+            </p>
           </div>
         </main>
 
         <!-- Right Sidebar: Stats & Badges -->
         <aside class="lg:col-span-3 space-y-6">
+          <div
+            class="bg-white rounded-2xl p-8 mb-6 border border-outline-variant/10 shadow-sm flex flex-col items-center justify-center min-h-[160px]">
+
+            <p class="text-xs text-secondary/40 mb-5 text-center tracking-widest font-light">
+              想分享关于古建的独特见解？
+            </p>
+
+            <button @click="openPublishModal" class="w-full max-w-[200px] py-3.5 bg-primary text-white rounded-xl font-bold 
+           hover:shadow-xl hover:-translate-y-0.5 active:scale-95 
+           transition-all duration-300 flex items-center justify-center gap-2 group">
+              <PenLineIcon class="w-4 h-4 group-hover:-rotate-12 transition-transform" />
+              <span class="tracking-wider">分享新见</span>
+            </button>
+
+          </div>
           <div class="bg-white rounded-xl p-8 border border-outline-variant/10 shadow-sm text-center">
             <p class="text-4xl font-serif text-primary mb-2">12,842</p>
             <p class="text-[10px] text-secondary/40 font-bold uppercase tracking-widest">活跃筑匠</p>
@@ -112,7 +114,8 @@
           <div class="bg-white rounded-xl p-6 border border-outline-variant/10 shadow-sm">
             <h3 class="font-serif text-lg mb-6">勋章馆</h3>
             <div class="grid grid-cols-3 gap-4">
-              <div v-for="i in 6" :key="i" class="aspect-square bg-secondary/5 rounded-lg flex items-center justify-center group cursor-help">
+              <div v-for="i in 6" :key="i"
+                class="aspect-square bg-secondary/5 rounded-lg flex items-center justify-center group cursor-help">
                 <StampIcon class="w-6 h-6 text-secondary/20 group-hover:text-primary transition-colors" />
               </div>
             </div>
@@ -125,13 +128,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import {
   TrendingUp as TrendingUpIcon,
   Search as SearchIcon,
   Stamp as StampIcon,
+  PenLine as PenLineIcon,
 } from 'lucide-vue-next';
 import PostCard from '@/components/PostCard.vue';
 
@@ -206,5 +210,14 @@ const filteredPosts = computed(() => {
 const goToDetail = (id: number) => {
   router.push(`/forum/${id}`);
 };
-</script>
+const openPublishModal = () => {
+  if (!localStorage.getItem('access_token')) {
+    // 未登录，触发登录弹窗（通过 inject 的 toggleAuth）
+    const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
+    toggleAuth?.(true);
+    return;
+  }
+  router.push('/forum/publish');
+};
 
+</script>

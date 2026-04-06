@@ -8,7 +8,7 @@
           <div class="flex items-center justify-between mb-8">
             <div class="flex items-center space-x-4">
               <div class="relative">
-                <img :src="post.authorAvatar" class="w-12 h-12 rounded-full object-cover" referrerpolicy="no-referrer" />
+                <img :src="post.author_avatar" class="w-12 h-12 rounded-full object-cover" referrerpolicy="no-referrer" />
                 <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
                   <StampIcon class="w-3 h-3 text-primary" />
                 </div>
@@ -27,16 +27,16 @@
               <button 
                 @click="togglePin"
                 class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
-                :class="post.isTop ? 'bg-primary text-white' : 'bg-secondary/5 text-secondary hover:bg-secondary/10'"
+                :class="post.is_top ? 'bg-primary text-white' : 'bg-secondary/5 text-secondary hover:bg-secondary/10'"
               >
-                {{ post.isTop ? '取消置顶' : '置顶' }}
+                {{ post.is_top ? '取消置顶' : '置顶' }}
               </button>
               <button 
                 @click="toggleEssence"
                 class="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
-                :class="post.isEssence ? 'bg-tertiary text-white' : 'bg-secondary/5 text-secondary hover:bg-secondary/10'"
+                :class="post.is_essence ? 'bg-tertiary text-white' : 'bg-secondary/5 text-secondary hover:bg-secondary/10'"
               >
-                {{ post.isEssence ? '取消加精' : '加精' }}
+                {{ post.is_essence ? '取消加精' : '加精' }}
               </button>
               <button 
                 @click="handleDelete"
@@ -73,7 +73,7 @@
               </button>
             </div>
             <div class="text-xs text-secondary/40 uppercase tracking-widest">
-              最后编辑于 {{ post.lastEdit }}
+              最后编辑于 {{ post.last_edit }}
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@
           <div class="space-y-10">
             <div v-for="comment in comments" :key="comment.id" class="group">
               <div class="flex items-start space-x-4">
-                <img :src="comment.avatar" class="w-10 h-10 rounded-full object-cover" referrerpolicy="no-referrer" />
+                <img :src="comment.author_avatar" class="w-10 h-10 rounded-full object-cover" referrerpolicy="no-referrer" />
                 <div class="flex-grow">
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center">
@@ -134,7 +134,7 @@
                   <!-- Nested Replies (Level 2) -->
                   <div v-if="comment.replies && comment.replies.length" class="mt-6 space-y-6 pl-6 border-l-2 border-outline-variant/5">
                     <div v-for="reply in comment.replies" :key="reply.id" class="flex items-start space-x-3">
-                      <img :src="reply.avatar" class="w-8 h-8 rounded-full object-cover" referrerpolicy="no-referrer" />
+                      <img :src="reply.author_avatar" class="w-8 h-8 rounded-full object-cover" referrerpolicy="no-referrer" />
                       <div>
                         <div class="flex items-center space-x-2 mb-1">
                           <span class="text-xs font-bold text-on-surface">{{ reply.author }}</span>
@@ -163,8 +163,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject, onMounted } from 'vue';
+import { ref, inject, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import axios from 'axios'; // 确保已安装 axios
 import { 
   Heart as HeartIcon, 
   Share as ShareIcon, 
@@ -179,6 +180,7 @@ const route = useRoute();
 const router = useRouter();
 const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
 
+// 权限校验
 const requireAuth = (callback: () => void) => {
   if (!localStorage.getItem('access_token')) {
     toggleAuth?.(true);
@@ -187,68 +189,144 @@ const requireAuth = (callback: () => void) => {
   callback();
 };
 
-const isAdmin = ref(true); // 模拟管理员权限
+const isAdmin = ref(true); // 实际开发中建议从用户信息接口获取
 const commentInput = ref('');
 const hasDraft = ref(false);
+const loading = ref(true);
 
-const post = ref({
-  id: route.params.id,
-  title: '解析《营造法式》中的斗拱模数化设计',
-  author: '营造大师_老李',
-  authorAvatar: 'https://picsum.photos/seed/user1/100/100',
-  category: '营造法式',
-  time: '2024-03-20',
-  lastEdit: '2024-03-21 14:30',
-  likes: 856,
-  isTop: true,
-  isEssence: true,
-  content: [
-    '《营造法式》作为中国古代建筑的巅峰之作，其核心灵魂在于“材份制”。这不仅是一套比例系统，更是一套高度模数化的设计语言。',
-    '在斗拱的构造中，每一块木料的尺寸都与“材”的等级紧密相连。这种设计确保了即便是在千里之外，工匠们也能根据同一套图纸，精准地复刻出结构严密的建筑。',
-    '通过对十一踩斗拱的受力分析，我们可以发现，古人巧妙地利用了木材的韧性与榫卯的柔性连接，实现了极佳的抗震性能。'
-  ],
-  images: [
-    'https://picsum.photos/seed/arch1/1200/800',
-    'https://picsum.photos/seed/arch2/1200/800'
-  ]
+const is_top = ref(false);
+const is_essence = ref(false);
+
+// 1. 初始化数据结构（对应后端 Serializer）
+const post = ref<any>({
+  id: null,
+  title: '',
+  author: '',
+  author_avatar: '',
+  category: '',
+  time: '',
+  last_edit: '',
+  likes: 0,
+  is_top: false,
+  is_essence: false,
+  content: [],
+  cover: null,
+  comment_count: 0,
+  images: []
 });
 
-const comments = ref([
-  {
-    id: 1,
-    author: '云栖墨客',
-    avatar: 'https://picsum.photos/seed/u1/100/100',
-    time: '2小时前',
-    text: '老李的文章总能切中要害。材份制确实是理解中国古建的钥匙。',
-    likes: 24,
-    replies: [
-      {
-        id: 101,
-        author: '木构灵魂',
-        avatar: 'https://picsum.photos/seed/u2/100/100',
-        time: '1小时前',
-        text: '同意。而且这种模数化思维，其实与现代的BIM技术有异曲同工之妙。'
-      }
-    ]
-  },
-  {
-    id: 2,
-    author: '丹青绘影',
-    avatar: 'https://picsum.photos/seed/u3/100/100',
-    time: '5小时前',
-    text: '期待下一篇关于彩画等级的解析！',
-    likes: 12,
-    replies: []
+const comments = ref<any[]>([]);
+
+// 2. 获取数据逻辑
+const fetchPostDetail = async () => {
+  try {
+    loading.value = true;
+    const res = await axios.get(`/api/forum/posts/${route.params.id}/`);
+    const data = res.data;
+    console.log('后端返回的原始数据:', res.data);
+    // 处理后端 content (TextField) 转为前端数组
+    // 如果后端存的是富文本，建议直接用 v-html；如果是纯文本换行，则 split
+    if (typeof data.content === 'string') {
+      data.content = data.content.split('\n').filter((p: string) => p.trim() !== '');
+    }
+
+    post.value = data;
+    console.log('当前帖子图片列表:', post.value.images);
+  } catch (error) {
+    console.error('获取帖子失败:', error);
+  } finally {
+    loading.value = false;
   }
-]);
+};
+
+const fetchComments = async () => {
+  try {
+    // 假设评论接口为 /api/forum/comments/?post=id
+    const res = await axios.get('/api/forum/comments/', { 
+      params: { post: route.params.id } 
+    });
+    comments.value = res.data.results || res.data;
+    console.log('处理后的评论列表:', comments.value);
+  } catch (error) {
+    console.error('获取评论失败:', error);
+  }
+};
 
 onMounted(() => {
+  fetchPostDetail();
+  fetchComments();
+  
   const cached = localStorage.getItem(`post_draft_${route.params.id}`);
   if (cached) {
     commentInput.value = cached;
     hasDraft.value = true;
   }
 });
+
+// 3. 管理员操作 (Patch 请求)
+const updatePostStatus = async (payload: object) => {
+  try {
+    const res = await axios.patch(`/api/forum/posts/${post.value.id}/`, payload);
+    // 局部更新本地数据
+    Object.assign(post.value, res.data);
+  } catch (error) {
+    alert('操作失败');
+  }
+};
+
+const togglePin = () => requireAuth(() => {
+  updatePostStatus({ is_top: !post.value.is_top });
+});
+
+const toggleEssence = () => requireAuth(() => {
+  updatePostStatus({ is_essence: !post.value.is_essence });
+});
+
+const handleShare = () => {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(window.location.href);
+    alert('链接已复制！');
+  }
+};
+
+const handleCommentLike = () => requireAuth(() => {});
+
+// 4. 互动操作
+const handleLike = async () => requireAuth(async () => {
+  try {
+    // 假设后端 ViewSet 有自定义 action 'like'
+    await axios.post(`/api/forum/posts/${post.value.id}/like/`);
+    post.value.likes++;
+  } catch (error) {
+    console.error('点赞失败');
+  }
+});
+
+const handleDelete = () => requireAuth(async () => {
+  if (confirm('确定要删除这篇作品吗？')) {
+    await axios.delete(`/api/forum/posts/${post.value.id}/`);
+    router.push('/forum');
+  }
+});
+
+// 5. 评论逻辑
+const submitComment = async () => {
+  requireAuth(async () => {
+    if (!commentInput.value.trim()) return;
+    try {
+      await axios.post('/api/forum/comments/', {
+        post: post.value.id,
+        text: commentInput.value
+      });
+      fetchComments(); // 重新加载评论
+      localStorage.removeItem(`post_draft_${route.params.id}`);
+      commentInput.value = '';
+      hasDraft.value = false;
+    } catch (error) {
+      alert('发布失败');
+    }
+  });
+};
 
 const saveDraft = () => {
   if (commentInput.value) {
@@ -259,39 +337,6 @@ const saveDraft = () => {
     hasDraft.value = false;
   }
 };
-
-const submitComment = () => {
-  requireAuth(() => {
-    if (!commentInput.value.trim()) return;
-    console.log('Submitting comment:', commentInput.value);
-    // TODO: 实现真实提交逻辑
-    localStorage.removeItem(`post_draft_${route.params.id}`);
-    commentInput.value = '';
-    hasDraft.value = false;
-    alert('见解已发布！');
-  });
-};
-
-const togglePin = () => {
-  requireAuth(() => { post.value.isTop = !post.value.isTop; });
-};
-
-const toggleEssence = () => {
-  requireAuth(() => { post.value.isEssence = !post.value.isEssence; });
-};
-
-const handleDelete = () => {
-  requireAuth(() => {
-    if (confirm('确定要删除这篇传世之作吗？')) {
-      console.log('Post deleted');
-      router.push('/forum');
-    }
-  });
-};
-
-const handleLike = () => requireAuth(() => {});
-const handleShare = () => requireAuth(() => {});
-const handleCommentLike = () => requireAuth(() => {});
 
 const replyTo = (comment: any) => {
   requireAuth(() => {

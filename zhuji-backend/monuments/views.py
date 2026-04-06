@@ -17,10 +17,10 @@ def featured_monument(request):
     首页 Hero 推荐古建：返回最新发布的一条。
     GET /api/monuments/featured/
     """
-    monument = Monument.objects.filter(is_published=True).order_by('-created_at').first()
+    monument = Monument.objects.filter(is_published=True).order_by('-created_at')[:3]
     if not monument:
         return Response({'detail': '暂无推荐古建。'}, status=404)
-    serializer = MonumentSerializer(monument, context={'request': request})
+    serializer = MonumentSerializer(monument, context={'request': request}, many=True)
     return Response(serializer.data)
 
 

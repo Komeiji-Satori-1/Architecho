@@ -32,7 +32,17 @@
                 <p class="text-[10px] text-secondary/40 font-bold uppercase mb-2">当前等级</p>
                 <div class="inline-block px-4 py-1 bg-tertiary text-white text-xs font-bold rounded">二级 · 营造生</div>
               </div>
+              <div class="mt-4">
+              <button 
+                @click="handleLogout"
+                class="w-full flex items-center justify-center px-6 py-4 rounded-2xl border border-error/20 text-error hover:bg-error/5 transition-all group"
+              >
+                <LogOutIcon class="w-5 h-5 mr-3 group-hover:-translate-x-1 transition-transform" />
+                <span class="font-bold text-sm">退出筑迹之旅</span>
+              </button>
             </div>
+            </div>
+            
           </div>
         </div>
 
@@ -179,11 +189,12 @@ import {
   Star as StarIcon,
   Info as InfoIcon,
   Ticket as TicketIcon,
-  Award as AwardIcon
+  Award as AwardIcon,
+  LogOut as LogOutIcon,
 } from 'lucide-vue-next';
-
+import { useRouter } from 'vue-router';
 const activeSection = ref('dashboard');
-
+const router = useRouter();
 const menuItems = [
   { id: 'dashboard', name: '进度看板', icon: DashboardIcon },
   { id: 'stamps', name: '印章册', icon: LayoutGridIcon },
@@ -242,4 +253,18 @@ const rewards = [
   { id: 1, name: '故宫门票优惠券', desc: '有效期至 2026-12-31', icon: TicketIcon },
   { id: 2, name: '“营造师”专属勋章', desc: '已佩戴至个人主页', icon: AwardIcon },
 ];
+const handleLogout = () => {
+  if (confirm('确定要暂别“筑迹”，结束本次营造之旅吗？')) {
+    // 清除 JWT Tokens
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    // 如果你有其他用户信息缓存，也一并清理
+    // localStorage.clear(); 
+
+    // 返回首页
+    router.replace('/').then(() => {
+    window.location.reload();
+  });
+  }
+};
 </script>

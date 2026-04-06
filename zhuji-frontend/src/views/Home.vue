@@ -2,40 +2,47 @@
   <div class="pt-20">
     <!-- Hero Section / Carousel Placeholder -->
     <section class="relative h-[80vh] overflow-hidden bg-on-surface">
-      <div class="absolute inset-0">
-        <img 
-          :src="hero.cover_image || 'https://picsum.photos/seed/architecture/1920/1080'" 
-          class="w-full h-full object-cover opacity-60 scale-105"
-          referrerpolicy="no-referrer"
-        />
-        <div class="absolute inset-0 bg-gradient-to-t from-on-surface via-transparent to-transparent"></div>
-      </div>
-      
-      <div class="container mx-auto px-4 h-full relative z-10 flex flex-col justify-center items-center text-center">
-        <div class="inline-block px-4 py-1 bg-tertiary text-white text-[10px] font-bold uppercase tracking-widest mb-6">
-          本月推荐
-        </div>
-        <h1 class="font-serif text-6xl md:text-8xl text-white mb-8 tracking-tight leading-tight">
-          {{ hero.name || '大唐遗风：五台山佛光寺' }}
-        </h1>
-        <p class="text-white/80 text-lg max-w-2xl mb-12 leading-relaxed font-light">
-          {{ hero.desc || '穿越千年的斗拱结构，触摸中华木构建筑的巰峰。加入本月共创计划，重塑经典文创，延续匠心之美。' }}
-        </p>
-        <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
-          <button @click="router.push('/stamps')" class="px-10 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary-container transition-all flex items-center">
-            开始探索 <ArrowRightIcon class="ml-2 w-4 h-4" />
-          </button>
-          <button @click="router.push('/stamps')" class="px-10 py-4 bg-white/10 backdrop-blur-md text-white font-bold rounded-lg hover:bg-white/20 transition-all border border-white/20">
-            了解集章
-          </button>
-        </div>
-      </div>
+  <div class="absolute inset-0">
+    <transition name="fade">
+      <img 
+        :key="currentHero.id"
+        :src="currentHero.cover_image || 'https://picsum.photos/seed/architecture/1920/1080'" 
+        class="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 transition-all duration-1000"
+        referrerpolicy="no-referrer"
+      />
+    </transition>
+    <div class="absolute inset-0 bg-gradient-to-t from-on-surface via-transparent to-transparent"></div>
+  </div>
+  
+  <div class="container mx-auto px-4 h-full relative z-10 flex flex-col justify-center items-center text-center">
+    <div class="inline-block px-4 py-1 bg-tertiary text-white text-[10px] font-bold uppercase tracking-widest mb-6">
+      本月推荐
+    </div>
+    
+    <h1 class="font-serif text-6xl md:text-8xl text-white mb-8 tracking-tight leading-tight">
+      {{ currentHero.name }}
+    </h1>
+    <p class="text-white/80 text-lg max-w-2xl mb-12 leading-relaxed font-light">
+      {{ currentHero.desc }}
+    </p>
 
-      <!-- Carousel Indicators -->
-      <div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex space-x-3">
-        <div v-for="i in 3" :key="i" class="w-12 h-1 rounded-full transition-all" :class="i === 1 ? 'bg-white' : 'bg-white/30'"></div>
+    <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
+      <button @click="router.push('/stamps')" class="px-10 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary-container transition-all flex items-center">
+        开始探索 <ArrowRightIcon class="ml-2 w-4 h-4" />
+      </button>
       </div>
-    </section>
+  </div>
+
+  <div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex space-x-3">
+    <div 
+      v-for="(item, index) in (heroList.length || 3)" 
+      :key="index" 
+      @click="currentIndex = index"
+      class="w-12 h-1 rounded-full transition-all cursor-pointer" 
+      :class="index === currentIndex ? 'bg-white' : 'bg-white/30'"
+    ></div>
+  </div>
+</section>
 
     <!-- Main Content -->
     <section class="py-24 bg-surface">
@@ -188,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted ,onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { 
@@ -200,15 +207,32 @@ import {
   Compass as CompassIcon
 } from 'lucide-vue-next';
 import StampLayer from '@/components/StampLayer.vue';
+import e from 'express';
 
 const router = useRouter();
+const heroList = ref([]); 
+const currentIndex = ref(0);
+let timer: any = null;
+const currentHero = computed(() => {
+  if (heroList.value.length > 0) {
+    return heroList.value[currentIndex.value];
+  }
+  // 默认占位数据
+  return {
+    id: 0,
+    name: '大唐遗风：五台山佛光寺',
+    desc: '穿越千年的斗拱结构，触摸中华木构建筑的巅峰。',
+    cover_image: 'https://picsum.photos/seed/architecture/1920/1080'
 
-// ─── 响应式数据 ─────────────────────────────────────────────────────const stampProgress = ref({
+  };
+});
+// ─── 响应式数据 ────//
+const stampProgress = ref({
   title: '应县木塔',
   progress: 0,
   collected: 0,
   total: 10,
-  description: '登录后查看你的个人集章进度。',
+  description: '登录后查看你的个人集章进度',
 });
 const hero = ref<{
   id?: number;
@@ -225,38 +249,70 @@ const hotTopicsLoading = ref(true);
 const coNews = ref<{ id: number; label: string; content: string }[]>([]);
 const coNewsLoading = ref(true);
 
-// ─── 数据拉取 ─────────────────────────────────────────────────────
+// ─── 数据拉取 ─────────────//
 onMounted(async () => {
   await Promise.allSettled([
     fetchHero(),
     fetchHotTopics(),
     fetchCoNews(),
     fetchStampProgress(),
+    startTimer(),
   ]);
 });
-
+onUnmounted(() => {
+  if (timer) clearInterval(timer);
+});
 async function fetchStampProgress() {
   const token = localStorage.getItem('access_token');
+  console.log('Fetching stamp progress with token:', token);
   if (!token) return;
   try {
     const res = await axios.get('http://127.0.0.1:8000/api/stamps/my-progress/', {
       headers: { Authorization: `Bearer ${token}` },
     });
     stampProgress.value = res.data;
-  } catch {
-    // 未收集印章或 token 过期时保持默认占位
+    console.log('Stamp progress fetched:', res.data);
+  } catch (error: any) {
+    // 2. 如果登录，但没有数据 (后端返回 404)
+    if (error.response && error.response.status === 404) {
+      console.log('后端无进度记录，设置默认占位数据');
+      stampProgress.value = {
+        title: '暂未开始探索',
+        progress: 0,
+        collected: 0,
+        total: 10,
+        description: '暂未开始收集',
+      };
+      console.log(stampProgress.value);
+    }
+
+    else if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      console.error('登录失效或无权访问');
+      console.log(error.response.data);
+      // 这里可以选做：localStorage.removeItem('access_token')
+    } 
+    // 其他错误（如网络断开、服务器崩溃）
+    else {
+      console.error('获取进度时发生未知错误:', error);
+    }
   }
 }
 
 async function fetchHero() {
   try {
     const res = await axios.get('http://127.0.0.1:8000/api/monuments/featured/');
-    hero.value = res.data;
+    heroList.value = res.data;
   } catch {
-    // 保持默认占位文案
+    console.log('获取推荐失败，使用默认值');
   }
 }
-
+const startTimer = () => {
+  timer = setInterval(() => {
+    if (heroList.value.length > 0) {
+      currentIndex.value = (currentIndex.value + 1) % heroList.value.length;
+    }
+  }, 5000); // 5秒切换一次
+};
 async function fetchHotTopics() {
   try {
     const res = await axios.get('http://127.0.0.1:8000/api/forum/hot-topics/');

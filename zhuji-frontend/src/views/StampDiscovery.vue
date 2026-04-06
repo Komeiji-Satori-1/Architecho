@@ -84,6 +84,22 @@
 
         <!-- Right: Stamp Collection -->
         <div class="lg:col-span-4 space-y-8">
+          <!-- Collection Stats -->
+          <div class="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
+            <div class="flex items-end justify-between mb-4">
+              <div>
+                <p class="text-[10px] text-secondary/40 font-bold uppercase tracking-widest mb-1">Collection</p>
+                <h3 class="font-serif text-xl">我的集章册</h3>
+              </div>
+              <span class="text-3xl font-serif text-primary">12/36</span>
+            </div>
+            <div class="w-full h-1 bg-secondary/10 rounded-full overflow-hidden mb-4">
+              <div class="w-1/3 h-full bg-primary"></div>
+            </div>
+            <p class="text-[10px] text-secondary/60 leading-relaxed">
+              你已完成 33% 的古建探索。解锁“琉璃黄”套色需完成佛光寺的全部学习任务。
+            </p>
+          </div>
           <div class="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm sticky top-24">
             <h2 class="font-serif text-2xl mb-2">套色印记</h2>
             <p class="text-[10px] text-secondary/40 font-bold uppercase tracking-widest mb-8">Color Overlay Stamping</p>
@@ -146,23 +162,6 @@
             >
               <PenIcon class="w-3 h-3 mr-2" /> 执行套色
             </button>
-          </div>
-
-          <!-- Collection Stats -->
-          <div class="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
-            <div class="flex items-end justify-between mb-4">
-              <div>
-                <p class="text-[10px] text-secondary/40 font-bold uppercase tracking-widest mb-1">Collection</p>
-                <h3 class="font-serif text-xl">我的集章册</h3>
-              </div>
-              <span class="text-3xl font-serif text-primary">12/36</span>
-            </div>
-            <div class="w-full h-1 bg-secondary/10 rounded-full overflow-hidden mb-4">
-              <div class="w-1/3 h-full bg-primary"></div>
-            </div>
-            <p class="text-[10px] text-secondary/60 leading-relaxed">
-              你已完成 33% 的古建探索。解锁“琉璃黄”套色需完成佛光寺的全部学习任务。
-            </p>
           </div>
         </div>
 

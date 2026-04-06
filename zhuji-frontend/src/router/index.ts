@@ -6,6 +6,7 @@ import StampDiscovery from '@/views/StampDiscovery.vue';
 import CoCreation from '@/views/CoCreation.vue';
 import UserProfile from '@/views/UserProfile.vue';
 import AdminDashboard from '@/views/AdminDashboard.vue';
+import PublishPost from '@/views/PublishPost.vue';
 
 const routes = [
   {
@@ -42,6 +43,11 @@ const routes = [
     path: '/admin',
     name: 'AdminDashboard',
     component: AdminDashboard,
+  },
+  {
+    path: '/forum/publish',
+    name: 'PublishPost',
+    component: PublishPost,
   },
 ];
 
