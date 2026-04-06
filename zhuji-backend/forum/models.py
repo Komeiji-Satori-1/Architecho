@@ -140,6 +140,25 @@ class PostImage(models.Model):
         verbose_name_plural = '帖子图片列表'
 
 
+class CommentImage(models.Model):
+    """一级评论配图，最多5张。"""
+
+    comment = models.ForeignKey(
+        'Comment',
+        on_delete=models.CASCADE,
+        related_name='images',
+        verbose_name='关联评论',
+    )
+    image = models.ImageField(upload_to='forum/comment_images/', verbose_name='图片')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        db_table = 'forum_comment_image'
+        ordering = ['sort_order']
+        verbose_name = '评论图片'
+        verbose_name_plural = '评论图片列表'
+
+
 class Comment(models.Model):
     """
     评论与回复 — 对应 PostDetail.vue comments（含二级嵌套 replies）。

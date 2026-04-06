@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from .models import ForumCategory, ForumPost, Comment
+from .models import ForumCategory, ForumPost, Comment, PostImage
 from .serializers import (
     ForumCategorySerializer,
     ForumPostHotSerializer,
@@ -70,6 +70,23 @@ class ForumPostViewSet(viewsets.ModelViewSet):
         post.save(update_fields=['likes'])
         return Response({'likes': post.likes})
 
+    @action(detail=True, methods=['post'], url_path='images',
+            permission_classes=[permissions.IsAuthenticated])
+    def upload_images(self, request, pk=None):
+        """POST /api/forum/posts/:id/images/ — 上传多张正文配图"""
+        post = self.get_object()
+        if post.author != request.user:
+            return Response({'detail': '无权操作。'}, status=status.HTTP_403_FORBIDDEN)
+        files = request.FILES.getlist('images')
+        if not files:
+            return Response({'detail': '请选择图片。'}, status=status.HTTP_400_BAD_REQUEST)
+        from .models import PostImage
+        created = []
+        for idx, f in enumerate(files):
+            img = PostImage.objects.create(post=post, image=f, sort_order=idx)
+            created.append(img.id)
+        return Response({'uploaded': len(created)}, status=status.HTTP_201_CREATED)
+
 
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.select_related('author').filter(parent=None)
@@ -92,3 +109,35 @@ class CommentViewSet(viewsets.ModelViewSet):
             except Comment.DoesNotExist:
                 pass
         serializer.save(author=self.request.user, parent=parent)
+
+    def destroy(self, request, *args, **kwargs):
+        comment = self.get_object()
+        user = request.user
+        from users.models import User
+        is_superadmin = hasattr(user, 'role') and user.role == User.ROLE_SUPERADMIN
+        if comment.author != user and not is_superadmin:
+            return Response({'detail': '无权删除他人评论。'}, status=status.HTTP_403_FORBIDDEN)
+        # 一级评论删除时，Django CASCADE 会自动删除其所有二级回复
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='images',
+            permission_classes=[permissions.IsAuthenticated])
+    def upload_images(self, request, pk=None):
+        """POST /api/forum/comments/:id/images/ — 上传一级评论配图（最多5张）"""
+        comment = self.get_object()
+        if comment.parent is not None:
+            return Response({'detail': '二级回复不支持图片上传。'}, status=status.HTTP_400_BAD_REQUEST)
+        if comment.author != request.user:
+            return Response({'detail': '无权操作。'}, status=status.HTTP_403_FORBIDDEN)
+        files = request.FILES.getlist('images')
+        if not files:
+            return Response({'detail': '请选择图片。'}, status=status.HTTP_400_BAD_REQUEST)
+        from .models import CommentImage
+        existing = comment.images.count()
+        remaining = 5 - existing
+        if remaining <= 0:
+            return Response({'detail': '已达到5张上限。'}, status=status.HTTP_400_BAD_REQUEST)
+        for idx, f in enumerate(files[:remaining]):
+            CommentImage.objects.create(comment=comment, image=f, sort_order=existing + idx)
+        return Response({'uploaded': min(len(files), remaining)}, status=status.HTTP_201_CREATED)

@@ -58,7 +58,7 @@
         <img v-if="coverPreview" :src="coverPreview" class="w-full h-full object-cover" />
         <template v-else>
           <ImageIcon class="w-8 h-8 text-secondary/20 group-hover:text-primary/40 transition-colors" />
-          <p class="mt-4 text-xs text-secondary/30 tracking-widest">点击上传古建影像（选填）</p>
+          <p class="mt-4 text-xs text-secondary/30 tracking-widest">上传影像（选填）</p>
         </template>
         <input
           ref="coverInputRef"
@@ -68,7 +68,54 @@
           @change="handleCoverChange"
         />
       </div>
+      <!-- 图片上传 -->
+      <div class="mb-12">
+        <p class="text-xs text-secondary/30 tracking-widest mb-4">正文配图（最多 9 张，选填）</p>
 
+        <!-- 预览网格 -->
+        <div v-if="extraImages.length" class="grid grid-cols-3 gap-3 mb-4">
+          <div
+            v-for="(img, idx) in extraImages"
+            :key="idx"
+            class="relative aspect-square rounded-xl overflow-hidden group"
+          >
+            <img :src="img.preview" class="w-full h-full object-cover" />
+            <button
+              @click="removeExtraImage(idx)"
+              class="absolute top-1.5 right-1.5 w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+            >&#x2715;</button>
+          </div>
+
+          <!-- 继续添加按鈕（未达9张） -->
+          <div
+            v-if="extraImages.length < 9"
+            @click="triggerExtraUpload"
+            class="aspect-square rounded-xl border-2 border-dashed border-secondary/10 flex flex-col items-center justify-center cursor-pointer hover:border-primary/20 transition-colors"
+          >
+            <PlusIcon class="w-6 h-6 text-secondary/20" />
+            <p class="text-[10px] text-secondary/30 mt-1">{{ extraImages.length }}/9</p>
+          </div>
+        </div>
+
+        <!-- 初始状态占位区 -->
+        <div
+          v-else
+          @click="triggerExtraUpload"
+          class="w-full h-24 border-2 border-dashed border-secondary/10 rounded-xl flex items-center justify-center gap-3 cursor-pointer hover:border-primary/20 transition-colors group"
+        >
+          <PlusIcon class="w-5 h-5 text-secondary/20 group-hover:text-primary/40 transition-colors" />
+          <span class="text-xs text-secondary/30 tracking-widest">添加配图</span>
+        </div>
+
+        <input
+          ref="extraInputRef"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          @change="handleExtraChange"
+        />
+      </div>
       <!-- 正文 -->
       <textarea
         v-model="content"
@@ -90,7 +137,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { ArrowLeft as ArrowLeftIcon, Image as ImageIcon } from 'lucide-vue-next';
+import { ArrowLeft as ArrowLeftIcon, Image as ImageIcon, Plus as PlusIcon } from 'lucide-vue-next';
 
 const router = useRouter();
 
@@ -123,6 +170,27 @@ onMounted(async () => {
 
 // ─── 封面图 ──
 const coverInputRef = ref<HTMLInputElement | null>(null);
+
+// ─── 多图（正文配图）──
+const extraImages = ref<{ file: File; preview: string }[]>([]);
+const extraInputRef = ref<HTMLInputElement | null>(null);
+
+const triggerExtraUpload = () => { extraInputRef.value?.click(); };
+
+const handleExtraChange = (e: Event) => {
+  const files = Array.from((e.target as HTMLInputElement).files ?? []);
+  const remaining = 9 - extraImages.value.length;
+  files.slice(0, remaining).forEach(f => {
+    extraImages.value.push({ file: f, preview: URL.createObjectURL(f) });
+  });
+  // 清空 input，允许重复选同一文件
+  (e.target as HTMLInputElement).value = '';
+};
+
+const removeExtraImage = (idx: number) => {
+  URL.revokeObjectURL(extraImages.value[idx].preview);
+  extraImages.value.splice(idx, 1);
+};
 
 const triggerCoverUpload = () => {
   coverInputRef.value?.click();
@@ -169,6 +237,17 @@ const handlePublish = async () => {
         'Content-Type': 'multipart/form-data',
       },
     });
+
+    // 若有配图，逐张上传
+    if (extraImages.value.length) {
+      const imgForm = new FormData();
+      extraImages.value.forEach(img => imgForm.append('images', img.file));
+      await axios.post(
+        `http://127.0.0.1:8000/api/forum/posts/${res.data.id}/images/`,
+        imgForm,
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } },
+      );
+    }
 
     // 发布成功 → 跳转到帖子详情页
     router.push(`/forum/${res.data.id}`);

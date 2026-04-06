@@ -93,11 +93,37 @@
                 class="w-full bg-transparent border-none focus:ring-0 text-sm min-h-[120px] resize-none"
                 @input="saveDraft"
               ></textarea>
+
+              <!-- 评论图片预览 -->
+              <div v-if="commentImages.length" class="flex flex-wrap gap-2 mt-3">
+                <div
+                  v-for="(img, idx) in commentImages"
+                  :key="idx"
+                  class="relative w-16 h-16 rounded-lg overflow-hidden group"
+                >
+                  <img :src="img.preview" class="w-full h-full object-cover" />
+                  <button
+                    @click="removeCommentImage(idx)"
+                    class="absolute inset-0 bg-black/40 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >&#x2715;</button>
+                </div>
+                <div
+                  v-if="commentImages.length < 5"
+                  @click="triggerCommentImageUpload"
+                  class="w-16 h-16 rounded-lg border-2 border-dashed border-secondary/10 flex items-center justify-center cursor-pointer hover:border-primary/20 transition-colors text-secondary/30 text-lg"
+                >+</div>
+              </div>
+
               <div class="flex items-center justify-between mt-4 pt-4 border-t border-outline-variant/5">
                 <div class="flex items-center space-x-4 text-secondary/40">
-                  <ImageIcon class="w-4 h-4 cursor-pointer hover:text-primary" />
+                  <ImageIcon
+                    class="w-4 h-4 cursor-pointer hover:text-primary transition-colors"
+                    @click="triggerCommentImageUpload"
+                    :class="commentImages.length >= 5 ? 'opacity-30 cursor-not-allowed' : ''"
+                  />
                   <LinkIcon class="w-4 h-4 cursor-pointer hover:text-primary" />
                   <AtSignIcon class="w-4 h-4 cursor-pointer hover:text-primary" />
+                  <span v-if="commentImages.length" class="text-[10px] text-primary/60">{{ commentImages.length }}/5 张图片</span>
                 </div>
                 <button 
                   @click="submitComment"
@@ -108,6 +134,15 @@
               </div>
             </div>
             <p v-if="hasDraft" class="text-[10px] text-primary/60 mt-2 italic">已自动保存草稿</p>
+            <!-- 隐藏的图片上传输入 -->
+            <input
+              ref="commentImageInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              @change="handleCommentImageChange"
+            />
           </div>
 
           <!-- Comment List -->
@@ -125,10 +160,25 @@
                   </div>
                   <p class="text-sm text-secondary/80 leading-relaxed mb-4">{{ comment.text }}</p>
                   
+                  <!-- 评论配图 -->
+                  <div v-if="comment.images && comment.images.length" class="flex flex-wrap gap-2 mb-4">
+                    <img
+                      v-for="(img, idx) in comment.images"
+                      :key="idx"
+                      :src="img.image_url"
+                      class="w-24 h-24 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                      referrerpolicy="no-referrer"
+                    />
+                  </div>
+
                   <div class="flex items-center space-x-6 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">
                     <button @click="handleCommentLike" class="hover:text-primary transition-colors">赞同 ({{ comment.likes }})</button>
                     <button class="hover:text-primary transition-colors" @click="replyTo(comment)">回复</button>
-                    <button v-if="isAdmin" class="text-red-400 hover:text-red-600 transition-colors">删除</button>
+                    <button
+                      v-if="canDeleteComment(comment)"
+                      class="text-red-400 hover:text-red-600 transition-colors"
+                      @click="deleteComment(comment)"
+                    >删除</button>
                   </div>
 
                   <!-- Nested Replies (Level 2) -->
@@ -146,6 +196,11 @@
                           <span>{{ reply.time }}</span>
                           <button class="hover:text-primary" @click="handleCommentLike">赞同</button>
                           <button class="hover:text-primary" @click="replyTo(reply)">回复</button>
+                          <button
+                            v-if="canDeleteComment(reply)"
+                            class="text-red-400 hover:text-red-500"
+                            @click="deleteReply(comment, reply)"
+                          >删除</button>
                         </div>
                       </div>
                     </div>
@@ -189,9 +244,12 @@ const requireAuth = (callback: () => void) => {
   callback();
 };
 
-const isAdmin = ref(true); // 实际开发中建议从用户信息接口获取
+const currentUser = ref<{ username: string; role: string } | null>(null);
+const isAdmin = computed(() => currentUser.value?.role === 'superadmin');
 const commentInput = ref('');
 const hasDraft = ref(false);
+const commentImages = ref<{ file: File; preview: string }[]>([]);
+const commentImageInputRef = ref<HTMLInputElement | null>(null);
 const loading = ref(true);
 
 const is_top = ref(false);
@@ -252,14 +310,22 @@ const fetchComments = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   fetchPostDetail();
   fetchComments();
-  
+
   const cached = localStorage.getItem(`post_draft_${route.params.id}`);
   if (cached) {
     commentInput.value = cached;
     hasDraft.value = true;
+  }
+
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    try {
+      const res = await axios.get('/api/users/me/');
+      currentUser.value = res.data;
+    } catch {}
   }
 });
 
@@ -314,11 +380,21 @@ const submitComment = async () => {
   requireAuth(async () => {
     if (!commentInput.value.trim()) return;
     try {
-      await axios.post('/api/forum/comments/', {
+      const res = await axios.post('/api/forum/comments/', {
         post: post.value.id,
         text: commentInput.value
       });
-      fetchComments(); // 重新加载评论
+      // 上传评论图片（仅一级评论支持）
+      if (commentImages.value.length) {
+        const formData = new FormData();
+        commentImages.value.forEach((img) => formData.append('images', img.file));
+        await axios.post(`/api/forum/comments/${res.data.id}/images/`, formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+        });
+        commentImages.value.forEach((img) => URL.revokeObjectURL(img.preview));
+        commentImages.value = [];
+      }
+      fetchComments();
       localStorage.removeItem(`post_draft_${route.params.id}`);
       commentInput.value = '';
       hasDraft.value = false;
@@ -342,6 +418,64 @@ const replyTo = (comment: any) => {
   requireAuth(() => {
     commentInput.value = `@${comment.author} `;
     saveDraft();
+  });
+};
+
+// 6. 评论图片上传辅助
+const triggerCommentImageUpload = () => {
+  if (commentImages.value.length >= 5) return;
+  commentImageInputRef.value?.click();
+};
+
+const handleCommentImageChange = (e: Event) => {
+  const files = Array.from((e.target as HTMLInputElement).files || []);
+  const remaining = 5 - commentImages.value.length;
+  files.slice(0, remaining).forEach((file) => {
+    commentImages.value.push({ file, preview: URL.createObjectURL(file) });
+  });
+  (e.target as HTMLInputElement).value = '';
+};
+
+const removeCommentImage = (idx: number) => {
+  URL.revokeObjectURL(commentImages.value[idx].preview);
+  commentImages.value.splice(idx, 1);
+};
+
+// 7. 评论删除权限与操作
+const canDeleteComment = (comment: any) => {
+  return currentUser.value && (
+    currentUser.value.username === comment.author ||
+    currentUser.value.role === 'superadmin'
+  );
+};
+
+// 删除一级评论（后端 CASCADE 自动清除其下二级回复）
+const deleteComment = (comment: any) => {
+  requireAuth(async () => {
+    if (!confirm('确定删除此评论？其下所有回复也将同时删除。')) return;
+    try {
+      await axios.delete(`/api/forum/comments/${comment.id}/`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+      });
+      comments.value = comments.value.filter((c: any) => c.id !== comment.id);
+    } catch {
+      alert('删除失败');
+    }
+  });
+};
+
+// 删除二级回复（仅移除当前回复，不影响回复链其他项）
+const deleteReply = (parentComment: any, reply: any) => {
+  requireAuth(async () => {
+    if (!confirm('确定删除此回复？')) return;
+    try {
+      await axios.delete(`/api/forum/comments/${reply.id}/`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
+      });
+      parentComment.replies = parentComment.replies.filter((r: any) => r.id !== reply.id);
+    } catch {
+      alert('删除失败');
+    }
   });
 };
 </script>

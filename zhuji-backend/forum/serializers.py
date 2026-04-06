@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ForumCategory, ForumPost, Comment,PostImage
+from .models import ForumCategory, ForumPost, Comment, PostImage, CommentImage
 
 
 class ForumCategorySerializer(serializers.ModelSerializer):
@@ -65,21 +65,43 @@ class ForumPostListSerializer(serializers.ModelSerializer):
         return None
 
 
+class CommentImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CommentImage
+        fields = ['id', 'image_url']
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        return None
+
+
 class CommentSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source='author.username', read_only=True)
     author_avatar = serializers.SerializerMethodField()
     time = serializers.DateTimeField(source='created_at', format='%Y-%m-%d %H:%M', read_only=True)
     replies = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'author', 'author_avatar', 'text', 'likes', 'time', 'replies']
+        fields = ['id', 'author', 'author_avatar', 'text', 'likes', 'time', 'images', 'replies']
 
     def get_author_avatar(self, obj):
         request = self.context.get('request')
         if obj.author.avatar and request:
             return request.build_absolute_uri(obj.author.avatar.url)
         return None
+
+    def get_images(self, obj):
+        # 只有一级评论才有图片
+        if obj.parent is not None:
+            return []
+        imgs = obj.images.all()
+        return CommentImageSerializer(imgs, many=True, context=self.context).data
 
     def get_replies(self, obj):
         if obj.parent is not None:
