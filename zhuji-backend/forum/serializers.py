@@ -85,10 +85,20 @@ class CommentSerializer(serializers.ModelSerializer):
     time = serializers.DateTimeField(source='created_at', format='%Y-%m-%d %H:%M', read_only=True)
     replies = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
+    post = serializers.PrimaryKeyRelatedField(
+        queryset=ForumPost.objects.all(),
+        write_only=True
+    )
+    parent = serializers.PrimaryKeyRelatedField(
+        queryset=Comment.objects.all(), 
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
 
     class Meta:
         model = Comment
-        fields = ['id', 'author', 'author_avatar', 'text', 'likes', 'time', 'images', 'replies']
+        fields = ['id', 'author', 'author_avatar', 'text', 'likes', 'time', 'images', 'replies','post', 'parent']
 
     def get_author_avatar(self, obj):
         request = self.context.get('request')

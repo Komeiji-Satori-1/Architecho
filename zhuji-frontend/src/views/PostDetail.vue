@@ -195,7 +195,7 @@
                         <div class="mt-2 flex items-center space-x-4 text-[9px] font-bold text-secondary/30 uppercase tracking-widest">
                           <span>{{ reply.time }}</span>
                           <button class="hover:text-primary" @click="handleCommentLike">赞同</button>
-                          <button class="hover:text-primary" @click="replyTo(reply)">回复</button>
+                          <button class="hover:text-primary" @click="replyTo(reply, comment)">回复</button>
                           <button
                             v-if="canDeleteComment(reply)"
                             class="text-red-400 hover:text-red-500"
@@ -220,7 +220,6 @@
 <script setup lang="ts">
 import { ref, inject, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios'; // 确保已安装 axios
 import { 
   Heart as HeartIcon, 
   Share as ShareIcon, 
@@ -230,6 +229,7 @@ import {
   Link as LinkIcon,
   AtSign as AtSignIcon
 } from 'lucide-vue-next';
+import service from '../api/request';
 
 const route = useRoute();
 const router = useRouter();
@@ -279,9 +279,9 @@ const comments = ref<any[]>([]);
 const fetchPostDetail = async () => {
   try {
     loading.value = true;
-    const res = await axios.get(`/api/forum/posts/${route.params.id}/`);
-    const data = res.data;
-    console.log('后端返回的原始数据:', res.data);
+    const res = await service.get(`/api/forum/posts/${route.params.id}/`);
+    const data = res as any;
+    console.log('后端返回的原始数据:', res);
     // 处理后端 content (TextField) 转为前端数组
     // 如果后端存的是富文本，建议直接用 v-html；如果是纯文本换行，则 split
     if (typeof data.content === 'string') {
@@ -300,10 +300,10 @@ const fetchPostDetail = async () => {
 const fetchComments = async () => {
   try {
     // 假设评论接口为 /api/forum/comments/?post=id
-    const res = await axios.get('/api/forum/comments/', { 
+    const res = await service.get('/api/forum/comments/', { 
       params: { post: route.params.id } 
     });
-    comments.value = res.data.results || res.data;
+    comments.value = (res as any).results || res;
     console.log('处理后的评论列表:', comments.value);
   } catch (error) {
     console.error('获取评论失败:', error);
@@ -323,8 +323,8 @@ onMounted(async () => {
   const token = localStorage.getItem('access_token');
   if (token) {
     try {
-      const res = await axios.get('/api/users/me/');
-      currentUser.value = res.data;
+      const res = await service.get('/api/users/me/');
+      currentUser.value = res as any;
     } catch {}
   }
 });
@@ -332,9 +332,9 @@ onMounted(async () => {
 // 3. 管理员操作 (Patch 请求)
 const updatePostStatus = async (payload: object) => {
   try {
-    const res = await axios.patch(`/api/forum/posts/${post.value.id}/`, payload);
+    const res = await service.patch(`/api/forum/posts/${post.value.id}/`, payload);
     // 局部更新本地数据
-    Object.assign(post.value, res.data);
+    Object.assign(post.value, res);
   } catch (error) {
     alert('操作失败');
   }
@@ -361,7 +361,7 @@ const handleCommentLike = () => requireAuth(() => {});
 const handleLike = async () => requireAuth(async () => {
   try {
     // 假设后端 ViewSet 有自定义 action 'like'
-    await axios.post(`/api/forum/posts/${post.value.id}/like/`);
+    await service.post(`/api/forum/posts/${post.value.id}/like/`);
     post.value.likes++;
   } catch (error) {
     console.error('点赞失败');
@@ -370,7 +370,7 @@ const handleLike = async () => requireAuth(async () => {
 
 const handleDelete = () => requireAuth(async () => {
   if (confirm('确定要删除这篇作品吗？')) {
-    await axios.delete(`/api/forum/posts/${post.value.id}/`);
+    await service.delete(`/api/forum/posts/${post.value.id}/`);
     router.push('/forum');
   }
 });
@@ -380,17 +380,17 @@ const submitComment = async () => {
   requireAuth(async () => {
     if (!commentInput.value.trim()) return;
     try {
-      const res = await axios.post('/api/forum/comments/', {
+      const res = await service.post('/api/forum/comments/', {
         post: post.value.id,
-        text: commentInput.value
+        text: commentInput.value,
+        parent: replyTarget.value?.id ?? null
       });
+      replyTarget.value = null;
       // 上传评论图片（仅一级评论支持）
       if (commentImages.value.length) {
         const formData = new FormData();
         commentImages.value.forEach((img) => formData.append('images', img.file));
-        await axios.post(`/api/forum/comments/${res.data.id}/images/`, formData, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
-        });
+        await service.post(`/api/forum/comments/${(res as any).id}/images/`, formData);
         commentImages.value.forEach((img) => URL.revokeObjectURL(img.preview));
         commentImages.value = [];
       }
@@ -399,6 +399,7 @@ const submitComment = async () => {
       commentInput.value = '';
       hasDraft.value = false;
     } catch (error) {
+
       alert('发布失败');
     }
   });
@@ -413,9 +414,11 @@ const saveDraft = () => {
     hasDraft.value = false;
   }
 };
-
-const replyTo = (comment: any) => {
+const replyTarget = ref<{ id: number; author: string } | null>(null);
+const replyTo = (comment: any,rootComment?: any) => {
   requireAuth(() => {
+    const parentId = rootComment ? rootComment.id : comment.id;
+    replyTarget.value = { id: parentId, author: comment.author };
     commentInput.value = `@${comment.author} `;
     saveDraft();
   });
@@ -454,9 +457,7 @@ const deleteComment = (comment: any) => {
   requireAuth(async () => {
     if (!confirm('确定删除此评论？其下所有回复也将同时删除。')) return;
     try {
-      await axios.delete(`/api/forum/comments/${comment.id}/`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
-      });
+      await service.delete(`/api/forum/comments/${comment.id}/`);
       comments.value = comments.value.filter((c: any) => c.id !== comment.id);
     } catch {
       alert('删除失败');
@@ -469,9 +470,7 @@ const deleteReply = (parentComment: any, reply: any) => {
   requireAuth(async () => {
     if (!confirm('确定删除此回复？')) return;
     try {
-      await axios.delete(`/api/forum/comments/${reply.id}/`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
-      });
+      await service.delete(`/api/forum/comments/${reply.id}/`);
       parentComment.replies = parentComment.replies.filter((r: any) => r.id !== reply.id);
     } catch {
       alert('删除失败');
