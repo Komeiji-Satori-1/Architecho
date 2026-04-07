@@ -54,14 +54,25 @@ class StampColorLayer(models.Model):
     """
     印章套色层定义 — 对应 StampDiscovery.vue stampSteps[]。
 
-    字段映射：
-      layer_index → 层级序号（1/2/3），对应 unlockedLayers 判断
-      layer_name  → step.name  ("第一层：素胎底框" / "第二层：朱砂描红" / "第三层：琉璃缀金")
-      color       → step.color ('#e2e2e2' / '#970010' / '#624300')
+    每层对应一个独立的 SVG 文件，前端按 layer_index 顺序叠加渲染。
+    支持 3-5 层，使用 mix-blend-mode 控制叠加效果。
 
-    SVG 渲染逻辑（StampDiscovery 前端）：
-      v-if="unlockedLayers >= layer_index" 控制每层是否显示
+    字段映射：
+      layer_index → 层级序号（1/2/3...），对应 unlockedLayers 判断
+      layer_name  → step.name  ("第一层：素胎底框")
+      color       → step.color ('#e2e2e2')
+      svg_file    → SVG 图片文件
+      blend_mode  → CSS mix-blend-mode 值
     """
+
+    BLEND_CHOICES = [
+        ('normal', 'Normal'),
+        ('multiply', 'Multiply（宣纸晕染）'),
+        ('screen', 'Screen'),
+        ('overlay', 'Overlay'),
+        ('darken', 'Darken'),
+        ('color-burn', 'Color Burn'),
+    ]
 
     stamp = models.ForeignKey(
         Stamp,
@@ -71,7 +82,7 @@ class StampColorLayer(models.Model):
     )
     layer_index = models.PositiveSmallIntegerField(
         verbose_name='层级序号',
-        help_text='1=第一层，2=第二层，3=第三层',
+        help_text='1=第一层，2=第二层，3=第三层…最多5层',
     )
     layer_name = models.CharField(
         max_length=100,
@@ -82,6 +93,20 @@ class StampColorLayer(models.Model):
         max_length=20,
         verbose_name='颜色值',
         help_text='十六进制颜色，如 #e2e2e2',
+    )
+    svg_file = models.FileField(
+        upload_to='stamps/layers/',
+        blank=True,
+        null=True,
+        verbose_name='SVG 图层文件',
+        help_text='上传独立的 SVG 文件，前端按顺序叠加渲染',
+    )
+    blend_mode = models.CharField(
+        max_length=20,
+        choices=BLEND_CHOICES,
+        default='multiply',
+        verbose_name='混合模式',
+        help_text='CSS mix-blend-mode，控制图层叠加效果',
     )
 
     class Meta:

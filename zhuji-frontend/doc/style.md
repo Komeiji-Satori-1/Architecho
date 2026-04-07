@@ -1,65 +1,35 @@
-### 1. 结构布局：沉浸式“稿纸”
-* **背景**：`bg-[#F9F8F4]`（仿宣纸色，比纯白温暖）。
-* **容器**：`max-w-3xl mx-auto pt-20 pb-32`。
-* **顶部动作条**：固定在顶部，透明毛玻璃效果。
-### 2. 核心代码逻辑（你可以直接给 AI 看这个样板）
+帮我按以下要求完善StampDiscovery页面。
+**集章印记 (StampDiscovery)设计**
+- **包含元素**：
+  - 探索视窗：以中国地图或朝代卷轴的形式展示3个可探索的古建筑节点。其他古建筑需要用户点击‘探索更多’按钮进入弹窗查看（弹窗组件需要你自行创建），用户点击一个古建筑则可进入资料模态框。
+  - 资料模态框：包含古建背景、简介、年代、结构类型以及详细文章资料的跳转按钮。
+  - 答题弹窗组件：展示单选、多选题目与印章动效区（题目在左，印章在右）
+  - 印章动效区：一块空白画版，用于展示套色印章。
+- **功能与交互**：
+  - 1用户点击探索视窗内的一个古建弹出对应资料模态框。
+  - 2用户点击详细文章的跳转按钮，跳转到新页面（需要你自行创建.vue文件）。
+  - 3用户翻页阅读文章，每一次翻页触发一个答题组件，根据刚刚阅读的文章回答问题后，首先获得一些积分，同时印章动效区的套色印章完成一层上色。所有题目回答正确后，获得该古建筑对应的徽章与线上奖励。
+  - 4印章动效区核心动效：套色印章从第一层“底框轮廓”渐渐叠加“朱砂红”、“琉璃黄”等图层，最终合成精美印章。
+- **跳转逻辑**：点击建筑节点弹出资料框；资料阅读完毕点击“开始挑战”弹出答题框；集齐所有印章图层后，触发一个获得印章的动效，并且弹出“领取线上奖励”按钮，点击跳转至【个人中心-我的奖励】
+- **详细文章的页面样式**：
+  - 你可以直接复用zhuji-frontend\src\views\PostDetail.vue的样式
 
-```vue
-<template>
-  <div class="min-h-screen bg-[#F9F8F4] font-serif">
-    <nav class="fixed top-0 w-full h-16 flex items-center justify-between px-8 bg-white/30 backdrop-blur-md z-50">
-      <button @click="goBack" class="flex items-center gap-2 text-secondary/60 hover:text-primary transition-colors">
-        <ArrowLeftIcon class="w-4 h-4" />
-        <span class="text-sm tracking-widest">返回筑境</span>
-      </button>
-      <div class="flex items-center gap-6">
-        <span class="text-xs text-secondary/30 tracking-tighter italic">“凡构屋之制，皆以材为祖”</span>
-        <button class="px-8 py-2 bg-primary text-white rounded-full text-sm font-bold active:scale-95 transition-all">
-          发布
-        </button>
-      </div>
-    </nav>
 
-    <main class="max-w-3xl mx-auto pt-32 px-6">
-      <textarea 
-        v-model="title"
-        placeholder="在此输入标题..."
-        rows="1"
-        class="w-full bg-transparent text-4xl font-bold placeholder:text-secondary/10 outline-none resize-none leading-tight tracking-tight"
-      ></textarea>
+**集章印记对应的后端开发**：
+- 1探索视窗的古建筑数据需要在后端读取，按照用户探索进度由高到低排序（全部探索完的不予展示，需要用户点击‘探索更多’按钮才能看到）。
+- 2详细文章资料的数据表（MonumentDetail）还没有创建，你需要创建并连接外键到Monument
+- 3答题组件的题目需要支持多种类型，有的是单选有的是多选，有的题目里面有图片而有的题目里面只有文字。目前数据库里面只支持图选题（选项是图片的题目，本质是单选题），你需要重构数据表
+- 4关于印章动效区的设计参考zhuji-frontend\doc\stamp.md，目前的数据表不足以支持该设计，请你完善zhuji-backend\stamps\models.py
+**集章印记对应的AdminDashboard的开发**
+- **configItems中新增：古建列表**
+  -实现对古建的增删改查
+- **configItems中新增：印章管理**
+  -支持上传3-5张svg图片
+  -支持图片排序以便印章动效区按顺序点亮
+- **configItems中新增：古建资料**
+  -支持上传文章
+  -支持文章人工选择分页
+  -支持在两页之间添加/绑定题目
+  -支持设定答对题目获得的积分
+  -自动核对该古建对应的印章层数与题目数是否一致
 
-      <div class="flex items-center gap-4 mt-8 mb-12">
-        <select class="bg-transparent border-b border-primary/20 text-sm py-1 outline-none text-primary cursor-pointer">
-          <option>营造法式</option>
-          <option>古建摄影</option>
-          <option>筑迹共创</option>
-        </select>
-        <span class="text-secondary/20">|</span>
-        <input type="text" placeholder="添加标签..." class="bg-transparent text-sm outline-none placeholder:text-secondary/20" />
-      </div>
-
-      <div class="w-full aspect-video bg-stone-100/50 border-2 border-dashed border-secondary/10 rounded-2xl flex flex-col items-center justify-center group hover:border-primary/20 transition-colors cursor-pointer mb-12">
-        <ImageIcon class="w-8 h-8 text-secondary/20 group-hover:text-primary/40 transition-colors" />
-        <p class="mt-4 text-xs text-secondary/30 tracking-widest">点击上传古建影像</p>
-      </div>
-
-      <textarea 
-        v-model="content"
-        placeholder="记录你的发现..."
-        class="w-full min-h-[500px] bg-transparent text-lg leading-loose outline-none resize-none placeholder:text-secondary/10"
-      ></textarea>
-    </main>
-  </div>
-</template>
-```
-
----
-### 3. 给 AI 的补充“补丁”指令
-
-如果 AI 生成的效果还是太“现代”或者太乱，你紧接着发这一段话：
-
-> **视觉修正微调：**
-> 1. **不要边框**：所有 `input` 和 `textarea` 必须是 `border-none` 和 `outline-none`。
-> 2. **字间距**：给标题和按钮加上 `tracking-wider`。
-> 3. **行高**：正文必须使用 `leading-loose` (松散行高)，这样看起来才有古籍的韵味。
-> 4. **颜色**：文字主色用 `text-secondary`（深咖色），不要用纯黑。

@@ -1,9 +1,13 @@
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from .models import Monument, ArticleSubmission
+from .models import Monument, ArticleSubmission, MonumentArticle, MonumentArticlePage, UserMonumentProgress
 from .serializers import (
     MonumentSerializer,
+    MonumentDiscoverySerializer,
+    MonumentArticleSerializer,
+    MonumentArticleWriteSerializer,
+    MonumentArticlePageWriteSerializer,
     SubmissionListSerializer,
     SubmissionDetailSerializer,
     SubmissionAuditSerializer,
@@ -103,3 +107,100 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         submission.status = ArticleSubmission.STATUS_APPROVED
         submission.save(update_fields=['status'])
         return Response({'detail': '投稿已通过。'})
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def discovery_monuments(request):
+    """
+    探索视窗古建列表 — 按用户探索进度排序。
+    未完成的优先展示，已完成的需通过 ?include_completed=true 查看。
+    """
+    monuments = Monument.objects.filter(is_published=True)
+    include_completed = request.query_params.get('include_completed', 'false') == 'true'
+
+    # 预取当前用户进度
+    progress_map = {}
+    user_progresses = UserMonumentProgress.objects.filter(user=request.user)
+    for p in user_progresses:
+        progress_map[p.monument_id] = p
+
+    result = []
+    for m in monuments:
+        m._user_progress = progress_map.get(m.id)
+        progress = m._user_progress
+        if not include_completed and progress and progress.status == 'completed':
+            continue
+        result.append(m)
+
+    # 排序：进行中 > 未开始 > 已完成
+    order = {'in_progress': 0, 'pending': 1, 'completed': 2}
+    result.sort(key=lambda m: order.get(
+        getattr(m._user_progress, 'status', 'pending') if m._user_progress else 'pending', 1
+    ))
+
+    serializer = MonumentDiscoverySerializer(result, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+class MonumentArticleViewSet(viewsets.ModelViewSet):
+    """古建详细文章 CRUD"""
+    queryset = MonumentArticle.objects.select_related('monument').prefetch_related('pages').all()
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['title', 'monument__name']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'by_monument'):
+            return [permissions.IsAuthenticatedOrReadOnly()]
+        return [permissions.IsAdminUser()]
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return MonumentArticleWriteSerializer
+        return MonumentArticleSerializer
+
+    @action(detail=False, methods=['get'], url_path='by-monument/(?P<monument_id>[0-9]+)')
+    def by_monument(self, request, monument_id=None):
+        """通过古建 ID 获取其文章"""
+        try:
+            article = MonumentArticle.objects.select_related('monument').prefetch_related(
+                'pages__quiz_questions__options'
+            ).get(monument_id=monument_id)
+        except MonumentArticle.DoesNotExist:
+            return Response({'detail': '该古建暂无详细文章。'}, status=404)
+        return Response(MonumentArticleSerializer(article, context={'request': request}).data)
+
+    @action(detail=True, methods=['get'], url_path='consistency-check')
+    def consistency_check(self, request, pk=None):
+        """检查文章页数对应的题目数与印章层数是否一致"""
+        article = self.get_object()
+        page_count = article.pages.count()
+        quiz_count = sum(p.quiz_questions.count() for p in article.pages.all())
+        stamp = article.monument.stamps.first() if article.monument else None
+        layer_count = stamp.total_layers if stamp else 0
+        consistent = quiz_count == layer_count
+        return Response({
+            'page_count': page_count,
+            'quiz_count': quiz_count,
+            'layer_count': layer_count,
+            'consistent': consistent,
+            'message': '一致' if consistent else f'不一致：题目数({quiz_count}) ≠ 印章层数({layer_count})',
+        })
+
+
+class MonumentArticlePageViewSet(viewsets.ModelViewSet):
+    """文章页 CRUD"""
+    queryset = MonumentArticlePage.objects.all()
+    serializer_class = MonumentArticlePageWriteSerializer
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve'):
+            return [permissions.IsAuthenticatedOrReadOnly()]
+        return [permissions.IsAdminUser()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        article_id = self.request.query_params.get('article')
+        if article_id:
+            qs = qs.filter(article_id=article_id)
+        return qs

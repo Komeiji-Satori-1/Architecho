@@ -209,3 +209,58 @@ class ArticleSubmission(models.Model):
 
     def __str__(self):
         return f'{self.title} ({self.get_status_display()})'
+
+
+class MonumentArticle(models.Model):
+    """
+    古建详细文章 — 对应 MonumentArticle.vue 翻页阅读体验。
+
+    每个古建（Monument）关联一篇详细文章，文章由多页（MonumentArticlePage）组成。
+    用户在阅读过程中，每翻一页后弹出答题组件。
+    """
+
+    monument = models.OneToOneField(
+        Monument,
+        on_delete=models.CASCADE,
+        related_name='article',
+        verbose_name='关联古建',
+    )
+    title = models.CharField(max_length=200, verbose_name='文章标题')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'monuments_article'
+        verbose_name = '古建详细文章'
+        verbose_name_plural = '古建详细文章'
+
+    def __str__(self):
+        return f'{self.monument.name} - {self.title}'
+
+
+class MonumentArticlePage(models.Model):
+    """
+    文章分页 — 每一页对应翻页阅读的一页内容。
+
+    quiz 题目通过 QuizQuestion.article_page 外键 关联到本页，
+    表示"阅读完本页后弹出该题目"。
+    """
+
+    article = models.ForeignKey(
+        MonumentArticle,
+        on_delete=models.CASCADE,
+        related_name='pages',
+        verbose_name='所属文章',
+    )
+    page_number = models.PositiveSmallIntegerField(verbose_name='页码')
+    content = models.TextField(verbose_name='页面内容', help_text='支持 HTML 富文本')
+
+    class Meta:
+        db_table = 'monuments_article_page'
+        unique_together = ('article', 'page_number')
+        ordering = ['page_number']
+        verbose_name = '文章页'
+        verbose_name_plural = '文章页列表'
+
+    def __str__(self):
+        return f'{self.article.title} - 第{self.page_number}页'

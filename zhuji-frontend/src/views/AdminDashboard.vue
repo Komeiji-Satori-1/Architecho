@@ -46,7 +46,7 @@
             <div>
               <p class="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Master Admin Panel</p>
               <h1 class="font-serif text-4xl text-on-surface">
-                {{ activeTab === 'dashboard' ? '工作台预览' : activeTab === 'audit' ? '内容审核中心' : activeTab === 'users' ? '用户与版主管理' : activeTab === 'ai' ? 'AI 监管配置' : '题库管理' }}
+                {{ { dashboard:'工作台预览', audit:'内容审核中心', users:'用户与版主管理', ai:'AI 监管配置', quiz:'题库管理', 'monuments-mgmt':'古建列表', 'stamp-mgmt':'印章管理', 'articles-mgmt':'古建资料' }[activeTab] || '管理面板' }}
               </h1>
             </div>
             <div class="flex gap-3">
@@ -303,10 +303,293 @@
             </div>
           </div>
 
+          <!-- Monuments Management View -->
+          <div v-if="activeTab === 'monuments-mgmt'" class="space-y-6">
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-secondary/40 font-bold">已发布和未发布的全部古建筑</p>
+              <button @click="openMonumentModal(null)" class="px-6 py-2.5 bg-primary text-white text-xs font-bold rounded-xl flex items-center shadow-lg shadow-primary/20">
+                <PlusIcon class="w-4 h-4 mr-2" /> 新增古建
+              </button>
+            </div>
+            <div v-if="!mgmtMonumentList.length" class="text-center py-16 text-secondary/40">
+              <LandmarkIcon class="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p class="font-bold text-sm">暂无古建数据</p>
+            </div>
+            <div class="bg-white rounded-3xl border border-outline-variant/10 shadow-sm overflow-hidden">
+              <table class="w-full text-left border-collapse">
+                <thead class="bg-surface">
+                  <tr>
+                    <th class="px-6 py-4 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">名称</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">朝代</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">状态</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">操作</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-outline-variant/10">
+                  <tr v-for="m in mgmtMonumentList" :key="m.id" class="hover:bg-surface/50 transition-colors">
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <img v-if="m.cover_image" :src="m.cover_image" class="w-10 h-10 rounded-lg object-cover" referrerpolicy="no-referrer" />
+                        <div v-else class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center">
+                          <LandmarkIcon class="w-4 h-4 text-secondary/30" />
+                        </div>
+                        <span class="text-sm font-bold">{{ m.name }}</span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-secondary/60">{{ m.dynasty || '-' }}</td>
+                    <td class="px-6 py-4">
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded" :class="m.is_published ? 'bg-green-100 text-green-700' : 'bg-secondary/10 text-secondary/60'">
+                        {{ m.is_published ? '已发布' : '草稿' }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 flex gap-3">
+                      <button @click="openMonumentModal(m)" class="text-[10px] font-bold text-primary hover:underline">编辑</button>
+                      <button @click="toggleMonumentPublish(m)" class="text-[10px] font-bold hover:underline" :class="m.is_published ? 'text-secondary/40' : 'text-green-600'">
+                        {{ m.is_published ? '取消发布' : '发布' }}
+                      </button>
+                      <button @click="deleteMonument(m.id)" class="text-[10px] font-bold text-error hover:underline">删除</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Stamp Management View -->
+          <div v-if="activeTab === 'stamp-mgmt'" class="space-y-6">
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-secondary/40 font-bold">印章与套色图层管理</p>
+              <button @click="openStampModal(null)" class="px-6 py-2.5 bg-primary text-white text-xs font-bold rounded-xl flex items-center shadow-lg shadow-primary/20">
+                <PlusIcon class="w-4 h-4 mr-2" /> 新增印章
+              </button>
+            </div>
+            <div v-if="!mgmtStampList.length" class="text-center py-16 text-secondary/40">
+              <StampIcon class="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p class="font-bold text-sm">暂无印章数据</p>
+            </div>
+            <div class="space-y-6">
+              <div v-for="stamp in mgmtStampList" :key="stamp.id" class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 class="font-bold text-sm">{{ stamp.name }}</h4>
+                    <p class="text-[10px] text-secondary/40">关联古建: {{ stamp.monument_name || '未关联' }} · {{ stamp.color_layers?.length || 0 }} 个图层</p>
+                  </div>
+                  <div class="flex gap-3">
+                    <button @click="openStampModal(stamp)" class="text-[10px] font-bold text-primary hover:underline">编辑</button>
+                    <button @click="deleteStamp(stamp.id)" class="text-[10px] font-bold text-error hover:underline">删除</button>
+                  </div>
+                </div>
+                <!-- Layers -->
+                <div class="space-y-3">
+                  <div v-for="layer in (stamp.color_layers || [])" :key="layer.id" class="flex items-center gap-4 p-3 bg-surface rounded-xl">
+                    <GripIcon class="w-4 h-4 text-secondary/20 shrink-0" />
+                    <div class="w-4 h-4 rounded-full shrink-0" :style="{ backgroundColor: layer.color }"></div>
+                    <span class="text-xs font-bold flex-grow">{{ layer.layer_name }} (第{{ layer.layer_index }}层)</span>
+                    <span class="text-[10px] text-secondary/40">{{ layer.blend_mode }}</span>
+                    <img v-if="layer.svg_url" :src="layer.svg_url" class="h-8 w-8 object-contain" referrerpolicy="no-referrer" />
+                    <button @click="deleteStampLayer(layer.id, stamp.id)" class="text-secondary/30 hover:text-error transition-colors">
+                      <TrashIcon class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <button @click="openLayerModal(stamp.id)" class="w-full py-3 border border-dashed border-outline-variant/30 rounded-xl text-xs font-bold text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
+                    <UploadIcon class="w-3.5 h-3.5" /> 新增图层
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Articles Management View -->
+          <div v-if="activeTab === 'articles-mgmt'" class="space-y-6">
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-secondary/40 font-bold">古建文章与答题页面管理</p>
+              <button @click="openArticleModal(null)" class="px-6 py-2.5 bg-primary text-white text-xs font-bold rounded-xl flex items-center shadow-lg shadow-primary/20">
+                <PlusIcon class="w-4 h-4 mr-2" /> 新增文章
+              </button>
+            </div>
+            <div v-if="!mgmtArticleList.length" class="text-center py-16 text-secondary/40">
+              <FileTextIcon class="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p class="font-bold text-sm">暂无文章数据</p>
+            </div>
+            <div class="space-y-6">
+              <div v-for="article in mgmtArticleList" :key="article.id" class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 class="font-bold text-sm">{{ article.title }}</h4>
+                    <p class="text-[10px] text-secondary/40">关联古建: {{ article.monument_name || '未关联' }} · {{ article.pages?.length || 0 }} 页</p>
+                  </div>
+                  <div class="flex gap-3 items-center">
+                    <button @click="checkArticleConsistency(article.id)" class="text-[10px] font-bold text-secondary/40 hover:text-primary flex items-center gap-1">
+                      <AlertCircleIcon class="w-3 h-3" /> 一致性检测
+                    </button>
+                    <button @click="openArticleModal(article)" class="text-[10px] font-bold text-primary hover:underline">编辑</button>
+                    <button @click="deleteArticle(article.id)" class="text-[10px] font-bold text-error hover:underline">删除</button>
+                  </div>
+                </div>
+                <!-- Pages List -->
+                <div class="space-y-3">
+                  <div v-for="page in (article.pages || [])" :key="page.id" class="bg-surface rounded-xl overflow-hidden">
+                    <div class="flex items-center justify-between p-4 cursor-pointer" @click="togglePageExpand(page.id)">
+                      <div class="flex items-center gap-3">
+                        <ChevronRightIcon class="w-4 h-4 text-secondary/30 transition-transform" :class="expandedPages.has(page.id) ? 'rotate-90' : ''" />
+                        <span class="text-xs font-bold">第{{ page.page_number }}页</span>
+                        <span class="text-[10px] text-secondary/40">{{ (page.quiz_questions || []).length }}道题目</span>
+                      </div>
+                      <div class="flex gap-2">
+                        <button @click.stop="openPageModal(article.id, page)" class="text-[10px] font-bold text-primary hover:underline">编辑</button>
+                        <button @click.stop="deletePage(page.id, article.id)" class="text-[10px] font-bold text-error hover:underline">删除</button>
+                      </div>
+                    </div>
+                    <div v-if="expandedPages.has(page.id)" class="px-4 pb-4 border-t border-outline-variant/10">
+                      <div class="text-xs text-secondary/60 leading-relaxed mt-3 line-clamp-4" v-html="page.content"></div>
+                      <div v-if="page.quiz_questions?.length" class="mt-3 space-y-2">
+                        <div v-for="q in page.quiz_questions" :key="q.id" class="flex items-center gap-2 text-[10px] text-secondary/40">
+                          <CheckCircleIcon class="w-3 h-3 text-primary" />
+                          <span>{{ q.description }} ({{ q.points }}分)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click="openPageModal(article.id, null)" class="w-full py-3 border border-dashed border-outline-variant/30 rounded-xl text-xs font-bold text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2">
+                    <PlusIcon class="w-3.5 h-3.5" /> 新增页面
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </main>
       </div>
     </div>
   </div>
+  <!-- Monument Modal -->
+  <Teleport to="body">
+    <div v-if="showMonumentModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showMonumentModal = false">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 class="font-serif text-xl mb-6">{{ editingMonumentId ? '编辑古建' : '新增古建' }}</h3>
+        <div class="space-y-4">
+          <input v-model="monumentForm.name" type="text" placeholder="古建名称" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <input v-model="monumentForm.dynasty" type="text" placeholder="朝代（如：宋代）" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <input v-model="monumentForm.location" type="text" placeholder="所在位置" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <textarea v-model="monumentForm.description" placeholder="简介描述" rows="3" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20 resize-none"></textarea>
+          <div class="flex items-center gap-4">
+            <label class="cursor-pointer px-4 py-2 bg-surface rounded-xl text-xs font-bold text-secondary hover:bg-secondary/10 transition-all">
+              <input type="file" accept="image/*" class="hidden" @change="onMonumentCoverChange" />
+              {{ monumentCoverPreview ? '更换封面' : '上传封面' }}
+            </label>
+            <img v-if="monumentCoverPreview" :src="monumentCoverPreview" class="h-16 rounded-xl object-cover" referrerpolicy="no-referrer" />
+          </div>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" v-model="monumentForm.is_published" class="accent-primary" />
+            <span class="text-sm">发布</span>
+          </label>
+        </div>
+        <div class="flex gap-3 mt-8">
+          <button @click="showMonumentModal = false" class="flex-1 py-3 bg-surface rounded-xl text-sm font-bold text-secondary">取消</button>
+          <button @click="saveMonument" :disabled="monumentSaving" class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-60">
+            {{ monumentSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+  <!-- Stamp Modal -->
+  <Teleport to="body">
+    <div v-if="showStampModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showStampModal = false">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 class="font-serif text-xl mb-6">{{ editingStampId ? '编辑印章' : '新增印章' }}</h3>
+        <div class="space-y-4">
+          <input v-model="stampForm.name" type="text" placeholder="印章名称" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <select v-model="stampForm.monument" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20">
+            <option :value="null">请选择关联古建</option>
+            <option v-for="m in mgmtMonumentList" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+          <textarea v-model="stampForm.description" placeholder="印章描述" rows="2" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20 resize-none"></textarea>
+        </div>
+        <div class="flex gap-3 mt-8">
+          <button @click="showStampModal = false" class="flex-1 py-3 bg-surface rounded-xl text-sm font-bold text-secondary">取消</button>
+          <button @click="saveStamp" :disabled="stampSaving" class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-60">
+            {{ stampSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+  <!-- Layer Modal -->
+  <Teleport to="body">
+    <div v-if="showLayerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showLayerModal = false">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 class="font-serif text-xl mb-6">新增图层</h3>
+        <div class="space-y-4">
+          <input v-model="layerForm.layer_name" type="text" placeholder="图层名称（如：素胎底框）" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <div class="grid grid-cols-2 gap-4">
+            <input v-model.number="layerForm.layer_index" type="number" min="1" placeholder="图层序号" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+            <input v-model="layerForm.color" type="color" class="w-full h-[52px] bg-surface border-none rounded-xl p-2 cursor-pointer" />
+          </div>
+          <select v-model="layerForm.blend_mode" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20">
+            <option value="multiply">multiply</option>
+            <option value="normal">normal</option>
+            <option value="screen">screen</option>
+            <option value="overlay">overlay</option>
+            <option value="darken">darken</option>
+            <option value="color-burn">color-burn</option>
+          </select>
+          <div class="flex items-center gap-4">
+            <label class="cursor-pointer px-4 py-2 bg-surface rounded-xl text-xs font-bold text-secondary hover:bg-secondary/10 transition-all">
+              <input type="file" accept=".svg,image/svg+xml,image/*" class="hidden" @change="onLayerSvgChange" />
+              {{ layerSvgPreview ? '更换SVG' : '上传SVG图层' }}
+            </label>
+            <img v-if="layerSvgPreview" :src="layerSvgPreview" class="h-16 object-contain" referrerpolicy="no-referrer" />
+          </div>
+        </div>
+        <div class="flex gap-3 mt-8">
+          <button @click="showLayerModal = false" class="flex-1 py-3 bg-surface rounded-xl text-sm font-bold text-secondary">取消</button>
+          <button @click="saveLayer" :disabled="layerSaving" class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-60">
+            {{ layerSaving ? '保存中...' : '保存图层' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+  <!-- Article Modal -->
+  <Teleport to="body">
+    <div v-if="showArticleModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showArticleModal = false">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 class="font-serif text-xl mb-6">{{ editingArticleId ? '编辑文章' : '新增文章' }}</h3>
+        <div class="space-y-4">
+          <input v-model="articleForm.title" type="text" placeholder="文章标题" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <select v-model="articleForm.monument" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20">
+            <option :value="null">选择关联古建</option>
+            <option v-for="m in mgmtMonumentList" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+        </div>
+        <div class="flex gap-3 mt-8">
+          <button @click="showArticleModal = false" class="flex-1 py-3 bg-surface rounded-xl text-sm font-bold text-secondary">取消</button>
+          <button @click="saveArticle" :disabled="articleSaving" class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-60">
+            {{ articleSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+  <!-- Page Modal -->
+  <Teleport to="body">
+    <div v-if="showPageModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showPageModal = false">
+      <div class="bg-white rounded-3xl p-8 w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 class="font-serif text-xl mb-6">{{ editingPageId ? '编辑页面' : '新增页面' }}</h3>
+        <div class="space-y-4">
+          <input v-model.number="pageForm.page_number" type="number" min="1" placeholder="页码（如：1）" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20" />
+          <textarea v-model="pageForm.content" placeholder="页面内容（支持HTML）" rows="10" class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20 resize-none font-mono"></textarea>
+        </div>
+        <div class="flex gap-3 mt-8">
+          <button @click="showPageModal = false" class="flex-1 py-3 bg-surface rounded-xl text-sm font-bold text-secondary">取消</button>
+          <button @click="savePage" :disabled="pageSaving" class="flex-1 py-3 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 disabled:opacity-60">
+            {{ pageSaving ? '保存中...' : '保存页面' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
   <!-- Quiz 缂栬緫妯℃€佹 -->
   <Teleport to="body">
     <div v-if="showQuizModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showQuizModal = false">
@@ -354,6 +637,16 @@ import {
   Inbox as InboxIcon,
   X as XIcon,
   Image as ImageIcon,
+  Landmark as LandmarkIcon,
+  Stamp as StampIcon,
+  FileText as FileTextIcon,
+  Trash2 as TrashIcon,
+  ChevronDown as ChevronDownIcon,
+  ChevronRight as ChevronRightIcon,
+  GripVertical as GripIcon,
+  Upload as UploadIcon,
+  AlertCircle as AlertCircleIcon,
+  CheckCircle as CheckCircleIcon,
 } from 'lucide-vue-next';
 import service from '../api/request';
 
@@ -367,6 +660,9 @@ const menuItems = [
 const configItems = [
   { id: 'ai', name: 'AI 监管', icon: ShieldCheckIcon },
   { id: 'quiz', name: '题库管理', icon: BookOpenIcon },
+  { id: 'monuments-mgmt', name: '古建列表', icon: LandmarkIcon },
+  { id: 'stamp-mgmt', name: '印章管理', icon: StampIcon },
+  { id: 'articles-mgmt', name: '古建资料', icon: FileTextIcon },
 ];
 
 const stats = [
@@ -569,5 +865,272 @@ onMounted(() => {
   fetchUsers();
   fetchQuizList();
   fetchMonuments();
+  fetchMgmtMonuments();
+  fetchMgmtStamps();
+  fetchMgmtArticles();
 });
+
+// ===== Monuments Management =====
+const mgmtMonumentList = ref<any[]>([]);
+const showMonumentModal = ref(false);
+const editingMonumentId = ref<number | null>(null);
+const monumentForm = ref({ name: '', dynasty: '', location: '', description: '', is_published: false });
+const monumentCoverFile = ref<File | null>(null);
+const monumentCoverPreview = ref('');
+const monumentSaving = ref(false);
+
+const fetchMgmtMonuments = async () => {
+  try {
+    const res = await service.get('/api/monuments/monuments/') as any;
+    mgmtMonumentList.value = res.results || res;
+  } catch { mgmtMonumentList.value = []; }
+};
+
+const openMonumentModal = (m: any) => {
+  if (m) {
+    editingMonumentId.value = m.id;
+    monumentForm.value = { name: m.name, dynasty: m.dynasty || '', location: m.location || '', description: m.description || '', is_published: m.is_published };
+    monumentCoverPreview.value = m.cover_image || '';
+  } else {
+    editingMonumentId.value = null;
+    monumentForm.value = { name: '', dynasty: '', location: '', description: '', is_published: false };
+    monumentCoverPreview.value = '';
+  }
+  monumentCoverFile.value = null;
+  showMonumentModal.value = true;
+};
+
+const onMonumentCoverChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) { monumentCoverFile.value = file; monumentCoverPreview.value = URL.createObjectURL(file); }
+};
+
+const saveMonument = async () => {
+  if (!monumentForm.value.name.trim()) { alert('请填写古建名称'); return; }
+  monumentSaving.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('name', monumentForm.value.name);
+    fd.append('dynasty', monumentForm.value.dynasty);
+    fd.append('location', monumentForm.value.location);
+    fd.append('description', monumentForm.value.description);
+    fd.append('is_published', String(monumentForm.value.is_published));
+    if (monumentCoverFile.value) fd.append('cover_image', monumentCoverFile.value);
+    if (editingMonumentId.value) {
+      await service.patch(`/api/monuments/monuments/${editingMonumentId.value}/`, fd);
+    } else {
+      await service.post('/api/monuments/monuments/', fd);
+    }
+    showMonumentModal.value = false;
+    fetchMgmtMonuments();
+    fetchMonuments();
+  } catch { alert('保存失败'); }
+  finally { monumentSaving.value = false; }
+};
+
+const toggleMonumentPublish = async (m: any) => {
+  try {
+    await service.patch(`/api/monuments/monuments/${m.id}/`, { is_published: !m.is_published });
+    fetchMgmtMonuments();
+    fetchMonuments();
+  } catch { alert('操作失败'); }
+};
+
+const deleteMonument = async (id: number) => {
+  if (!confirm('确定删除此古建？关联的印章和文章也将受到影响。')) return;
+  try { await service.delete(`/api/monuments/monuments/${id}/`); fetchMgmtMonuments(); } catch { alert('删除失败'); }
+};
+
+// ===== Stamp Management =====
+const mgmtStampList = ref<any[]>([]);
+const showStampModal = ref(false);
+const editingStampId = ref<number | null>(null);
+const stampForm = ref({ name: '', monument: null as number | null, description: '' });
+const stampSaving = ref(false);
+
+const showLayerModal = ref(false);
+const layerStampId = ref<number | null>(null);
+const layerForm = ref({ layer_name: '', layer_index: 1, color: '#970010', blend_mode: 'multiply' });
+const layerSvgFile = ref<File | null>(null);
+const layerSvgPreview = ref('');
+const layerSaving = ref(false);
+
+const fetchMgmtStamps = async () => {
+  try {
+    const res = await service.get('/api/stamps/stamps/') as any;
+    mgmtStampList.value = res.results || res;
+  } catch { mgmtStampList.value = []; }
+};
+
+const openStampModal = (s: any) => {
+  if (s) {
+    editingStampId.value = s.id;
+    stampForm.value = { name: s.name, monument: s.monument, description: s.description || '' };
+  } else {
+    editingStampId.value = null;
+    stampForm.value = { name: '', monument: null, description: '' };
+  }
+  showStampModal.value = true;
+};
+
+const saveStamp = async () => {
+  if (!stampForm.value.name.trim()) { alert('请填写印章名称'); return; }
+  stampSaving.value = true;
+  try {
+    const data: any = { name: stampForm.value.name, description: stampForm.value.description };
+    if (stampForm.value.monument) data.monument = stampForm.value.monument;
+    if (editingStampId.value) {
+      await service.patch(`/api/stamps/stamps/${editingStampId.value}/`, data);
+    } else {
+      await service.post('/api/stamps/stamps/', data);
+    }
+    showStampModal.value = false;
+    fetchMgmtStamps();
+  } catch { alert('保存失败'); }
+  finally { stampSaving.value = false; }
+};
+
+const deleteStamp = async (id: number) => {
+  if (!confirm('确定删除此印章？')) return;
+  try { await service.delete(`/api/stamps/stamps/${id}/`); fetchMgmtStamps(); } catch { alert('删除失败'); }
+};
+
+const openLayerModal = (stampId: number) => {
+  layerStampId.value = stampId;
+  layerForm.value = { layer_name: '', layer_index: 1, color: '#970010', blend_mode: 'multiply' };
+  layerSvgFile.value = null;
+  layerSvgPreview.value = '';
+  showLayerModal.value = true;
+};
+
+const onLayerSvgChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) { layerSvgFile.value = file; layerSvgPreview.value = URL.createObjectURL(file); }
+};
+
+const saveLayer = async () => {
+  if (!layerForm.value.layer_name.trim()) { alert('请填写图层名称'); return; }
+  layerSaving.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('stamp', String(layerStampId.value));
+    fd.append('layer_name', layerForm.value.layer_name);
+    fd.append('layer_index', String(layerForm.value.layer_index));
+    fd.append('color', layerForm.value.color);
+    fd.append('blend_mode', layerForm.value.blend_mode);
+    if (layerSvgFile.value) fd.append('svg_file', layerSvgFile.value);
+    await service.post('/api/stamps/layers/', fd);
+    showLayerModal.value = false;
+    fetchMgmtStamps();
+  } catch { alert('保存失败'); }
+  finally { layerSaving.value = false; }
+};
+
+const deleteStampLayer = async (layerId: number, stampId: number) => {
+  if (!confirm('确定删除此图层？')) return;
+  try { await service.delete(`/api/stamps/layers/${layerId}/`); fetchMgmtStamps(); } catch { alert('删除失败'); }
+};
+
+// ===== Articles Management =====
+const mgmtArticleList = ref<any[]>([]);
+const expandedPages = ref<Set<number>>(new Set());
+const showArticleModal = ref(false);
+const editingArticleId = ref<number | null>(null);
+const articleForm = ref({ title: '', monument: null as number | null });
+const articleSaving = ref(false);
+
+const showPageModal = ref(false);
+const editingPageId = ref<number | null>(null);
+const pageArticleId = ref<number | null>(null);
+const pageForm = ref({ page_number: 1, content: '' });
+const pageSaving = ref(false);
+
+const fetchMgmtArticles = async () => {
+  try {
+    const res = await service.get('/api/monuments/articles/') as any;
+    mgmtArticleList.value = res.results || res;
+  } catch { mgmtArticleList.value = []; }
+};
+
+const togglePageExpand = (pageId: number) => {
+  if (expandedPages.value.has(pageId)) expandedPages.value.delete(pageId);
+  else expandedPages.value.add(pageId);
+};
+
+const openArticleModal = (a: any) => {
+  if (a) {
+    editingArticleId.value = a.id;
+    articleForm.value = { title: a.title, monument: a.monument };
+  } else {
+    editingArticleId.value = null;
+    articleForm.value = { title: '', monument: null };
+  }
+  showArticleModal.value = true;
+};
+
+const saveArticle = async () => {
+  if (!articleForm.value.title.trim()) { alert('请填写文章标题'); return; }
+  articleSaving.value = true;
+  try {
+    const data: any = { title: articleForm.value.title };
+    if (articleForm.value.monument) data.monument = articleForm.value.monument;
+    if (editingArticleId.value) {
+      await service.patch(`/api/monuments/articles/${editingArticleId.value}/`, data);
+    } else {
+      await service.post('/api/monuments/articles/', data);
+    }
+    showArticleModal.value = false;
+    fetchMgmtArticles();
+  } catch { alert('保存失败'); }
+  finally { articleSaving.value = false; }
+};
+
+const deleteArticle = async (id: number) => {
+  if (!confirm('确定删除此文章？关联页面和题目也将受到影响。')) return;
+  try { await service.delete(`/api/monuments/articles/${id}/`); fetchMgmtArticles(); } catch { alert('删除失败'); }
+};
+
+const checkArticleConsistency = async (id: number) => {
+  try {
+    const res = await service.get(`/api/monuments/articles/${id}/consistency-check/`) as any;
+    const issues = res.issues || [];
+    if (!issues.length) {
+      alert('✅ 检测通过：文章结构完整，所有页面均已关联题目。');
+    } else {
+      alert('⚠️ 发现以下问题：\n' + issues.join('\n'));
+    }
+  } catch { alert('检测请求失败'); }
+};
+
+const openPageModal = (articleId: number, page: any) => {
+  pageArticleId.value = articleId;
+  if (page) {
+    editingPageId.value = page.id;
+    pageForm.value = { page_number: page.page_number, content: page.content || '' };
+  } else {
+    editingPageId.value = null;
+    pageForm.value = { page_number: 1, content: '' };
+  }
+  showPageModal.value = true;
+};
+
+const savePage = async () => {
+  pageSaving.value = true;
+  try {
+    const data = { article: pageArticleId.value, page_number: pageForm.value.page_number, content: pageForm.value.content };
+    if (editingPageId.value) {
+      await service.patch(`/api/monuments/article-pages/${editingPageId.value}/`, data);
+    } else {
+      await service.post('/api/monuments/article-pages/', data);
+    }
+    showPageModal.value = false;
+    fetchMgmtArticles();
+  } catch { alert('保存失败'); }
+  finally { pageSaving.value = false; }
+};
+
+const deletePage = async (pageId: number, articleId: number) => {
+  if (!confirm('确定删除此页面？')) return;
+  try { await service.delete(`/api/monuments/article-pages/${pageId}/`); fetchMgmtArticles(); } catch { alert('删除失败'); }
+};
 </script>

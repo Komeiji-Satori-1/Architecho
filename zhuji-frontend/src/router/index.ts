@@ -7,6 +7,7 @@ import CoCreation from '@/views/CoCreation.vue';
 import UserProfile from '@/views/UserProfile.vue';
 import AdminDashboard from '@/views/AdminDashboard.vue';
 import PublishPost from '@/views/PublishPost.vue';
+import MonumentArticle from '@/views/MonumentArticle.vue';
 
 const routes = [
   {
@@ -28,6 +29,11 @@ const routes = [
     path: '/stamps',
     name: 'StampDiscovery',
     component: StampDiscovery,
+  },
+  {
+    path: '/stamps/article/:monumentId',
+    name: 'MonumentArticle',
+    component: MonumentArticle,
   },
   {
     path: '/co-creation',
