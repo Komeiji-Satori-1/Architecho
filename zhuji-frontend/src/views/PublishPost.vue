@@ -27,7 +27,7 @@
         placeholder="在此输入标题..."
         rows="1"
         @input="autoResize($event)"
-        class="w-full bg-transparent text-4xl font-bold placeholder:text-secondary/10 outline-none resize-none leading-tight tracking-tight text-secondary"
+        class="w-full bg-transparent text-4xl font-bold placeholder:text-secondary/30 outline-none resize-none leading-tight tracking-tight text-secondary overflow-hidden"
       ></textarea>
 
       <!-- 分类 & 标签行 -->
@@ -52,7 +52,7 @@
 
       <!-- 封面图上传 -->
       <div
-        class="w-full aspect-video bg-stone-100/50 border-2 border-dashed border-secondary/10 rounded-2xl flex flex-col items-center justify-center group hover:border-primary/20 transition-colors cursor-pointer mb-12 overflow-hidden"
+        class="w-full aspect-video bg-stone-100/50 border-2 border-dashed border-secondary/20 rounded-2xl flex flex-col items-center justify-center group hover:border-primary/20 transition-colors cursor-pointer mb-12 overflow-hidden"
         @click="triggerCoverUpload"
       >
         <img v-if="coverPreview" :src="coverPreview" class="w-full h-full object-cover" />
@@ -120,7 +120,7 @@
       <textarea
         v-model="content"
         placeholder="记录你的发现...&#10;&#10;分享你对这处古建的所思所感，让更多筑匠看见这片历史遗珠。"
-        class="w-full min-h-[500px] bg-transparent text-lg leading-loose outline-none resize-none placeholder:text-secondary/10 text-secondary"
+        class="w-full min-h-[500px] bg-transparent text-lg leading-loose outline-none resize-none placeholder:text-secondary/40 text-secondary"
       ></textarea>
 
       <!-- 字数提示 -->

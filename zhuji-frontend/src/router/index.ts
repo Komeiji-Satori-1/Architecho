@@ -59,4 +59,15 @@ const router = createRouter({
   },
 });
 
+router.beforeEach((to, _from, next) => {
+  if (to.name === 'AdminDashboard') {
+    const role = localStorage.getItem('user_role');
+    if (role !== 'superadmin') {
+      next('/');
+      return;
+    }
+  }
+  next();
+});
+
 export default router;

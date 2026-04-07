@@ -97,6 +97,7 @@ const handleLogin = async () => {
     });
     localStorage.setItem('access_token', response.data.access);
     localStorage.setItem('refresh_token', response.data.refresh);
+    localStorage.setItem('user_role', response.data.user?.role || 'user');
     emit('close');
     window.location.reload();
   } catch {
@@ -113,6 +114,7 @@ const handleRegister = async () => {
     });
     localStorage.setItem('access_token', res.data.access);
     localStorage.setItem('refresh_token', res.data.refresh);
+    localStorage.setItem('user_role', res.data.user?.role || 'user');
     emit('close');
     window.location.reload();
   } catch (err: any) {
