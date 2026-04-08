@@ -78,9 +78,9 @@ class QuizQuestionWriteSerializer(serializers.ModelSerializer):
         model = QuizQuestion
         fields = [
             'description', 'question_type',
-            'image', 'monument', 'article_page', 'points',
+            'image', 'monument', 'article_page', 'points','id'
         ]
-
+        read_only_fields = ['id']
 
 class QuizOptionWriteSerializer(serializers.ModelSerializer):
     class Meta:

@@ -3,9 +3,8 @@ from .models import Monument, ArticleSubmission, MonumentArticle, MonumentArticl
 
 
 class MonumentSerializer(serializers.ModelSerializer):
-    cover_image = serializers.SerializerMethodField()
     has_article = serializers.SerializerMethodField()
-
+    cover_image = serializers.ImageField(required=False, allow_null=True)
     class Meta:
         model = Monument
         fields = [
@@ -23,8 +22,6 @@ class MonumentSerializer(serializers.ModelSerializer):
 
     def get_has_article(self, obj):
         return hasattr(obj, 'article')
-
-
 class MonumentDiscoverySerializer(serializers.ModelSerializer):
     """用于 StampDiscovery 探索视窗，含用户探索进度"""
     cover_image = serializers.SerializerMethodField()
