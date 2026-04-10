@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import ForumCategory, ForumPost, Comment, PostImage, CommentImage
+from django.utils import timezone
+from datetime import timedelta
+from .models import (
+    ForumCategory, ForumPost, Comment, PostImage, CommentImage,
+    ForumInteraction, CommentLike, PostReport, CommentReport
+)
 
 
 class ForumCategorySerializer(serializers.ModelSerializer):
@@ -42,14 +47,17 @@ class ForumPostListSerializer(serializers.ModelSerializer):
     cover = serializers.SerializerMethodField()
     time = serializers.DateTimeField(source='created_at', format='%Y-%m-%d', read_only=True)
     last_edit = serializers.DateTimeField(source='updated_at', format='%Y-%m-%d %H:%M', read_only=True)
+    heat_score = serializers.SerializerMethodField()  # 热度分数
+    is_liked = serializers.SerializerMethodField()  # 当前用户是否已点赞
 
     class Meta:
         model = ForumPost
         fields = [
             'id', 'title', 'excerpt', 'cover',
             'author', 'author_avatar', 'category_name',
-            'is_top', 'is_essence', 'views', 'likes',
+            'is_top', 'is_essence', 'views', 'likes', 'share_count',
             'time', 'last_edit', 'comment_count',
+            'heat_score', 'is_liked',
         ]
 
     def get_author_avatar(self, obj):
@@ -63,6 +71,33 @@ class ForumPostListSerializer(serializers.ModelSerializer):
         if obj.cover and request:
             return request.build_absolute_uri(obj.cover.url)
         return None
+    
+    def get_heat_score(self, obj):
+        """
+        热度 = views*0.2 + likes*0.3 + comments*0.5 + 时间衰减因子
+        时间衰减：超过7天的帖子热度 * 0.9^(天数-7)
+        """
+        base_heat = obj.views * 0.2 + obj.likes * 0.3 + obj.comment_count * 0.5
+        
+        # 时间衰减因子
+        days_old = (timezone.now() - obj.created_at).days
+        decay_factor = 0.9 ** max(0, days_old - 7)  # 7天后开始衰减
+        
+        final_heat = round(base_heat * decay_factor, 2)
+        print(f"[DEBUG] Post {obj.id} heat calculation: views={obj.views}, likes={obj.likes}, comments={obj.comment_count}, days_old={days_old}, heat={final_heat}")
+        return final_heat
+    
+    def get_is_liked(self, obj):
+        """当前用户是否已点赞"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        is_liked = obj.interactions.filter(
+            user=request.user,
+            interaction_type=ForumInteraction.LIKE
+        ).exists()
+        print(f"[DEBUG] User {request.user.username} liked post {obj.id}: {is_liked}")
+        return is_liked
 
 
 class CommentImageSerializer(serializers.ModelSerializer):
@@ -85,6 +120,7 @@ class CommentSerializer(serializers.ModelSerializer):
     time = serializers.DateTimeField(source='created_at', format='%Y-%m-%d %H:%M', read_only=True)
     replies = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
     post = serializers.PrimaryKeyRelatedField(
         queryset=ForumPost.objects.all(),
         write_only=True
@@ -98,7 +134,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'author', 'author_avatar', 'text', 'likes', 'time', 'images', 'replies','post', 'parent']
+        fields = ['id', 'author', 'author_avatar', 'text', 'likes', 'time', 'images', 'replies', 'is_liked', 'post', 'parent']
 
     def get_author_avatar(self, obj):
         request = self.context.get('request')
@@ -118,6 +154,18 @@ class CommentSerializer(serializers.ModelSerializer):
             return []
         children = obj.replies.select_related('author').order_by('created_at')
         return CommentSerializer(children, many=True, context=self.context).data
+    
+    def get_is_liked(self, obj):
+        """当前用户是否已点赞该评论"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        is_liked = CommentLike.objects.filter(
+            user=request.user,
+            comment=obj
+        ).exists()
+        print(f"[DEBUG] User {request.user.username} liked comment {obj.id}: {is_liked}")
+        return is_liked
 class PostImageSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
@@ -141,13 +189,17 @@ class ForumPostDetailSerializer(serializers.ModelSerializer):
     last_edit = serializers.DateTimeField(source='updated_at', format='%Y-%m-%d %H:%M', read_only=True)
     comment_count = serializers.IntegerField(read_only=True)
     images = serializers.SerializerMethodField()
+    heat_score = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    
     class Meta:
         model = ForumPost
         fields = [
-            'id', 'title', 'content', 'excerpt', 'cover','images',
+            'id', 'title', 'content', 'excerpt', 'cover', 'images',
             'author', 'author_avatar', 'category',
-            'is_top', 'is_essence', 'views', 'likes',
+            'is_top', 'is_essence', 'views', 'likes', 'share_count',
             'time', 'last_edit', 'comment_count',
+            'heat_score', 'is_liked',
         ]
 
     def get_author_avatar(self, obj):
@@ -161,6 +213,7 @@ class ForumPostDetailSerializer(serializers.ModelSerializer):
         if obj.cover and request:
             return request.build_absolute_uri(obj.cover.url)
         return None
+    
     def get_images(self, obj):
         """将关联的 PostImage 对象的图片路径转换为完整 URL 数组"""
         request = self.context.get('request')
@@ -170,6 +223,71 @@ class ForumPostDetailSerializer(serializers.ModelSerializer):
         urls = []
         for img_obj in image_queryset:
             if img_obj.image and request:
-                # build_absolute_uri 会自动拼接 http://domain.com/media/path/to/img.jpg
                 urls.append(request.build_absolute_uri(img_obj.image.url))
         return urls
+    
+    def get_heat_score(self, obj):
+        """计算热度分数"""
+        base_heat = obj.views * 0.2 + obj.likes * 0.3 + obj.comment_count * 0.5
+        days_old = (timezone.now() - obj.created_at).days
+        decay_factor = 0.9 ** max(0, days_old - 7)
+        final_heat = round(base_heat * decay_factor, 2)
+        print(f"[DEBUG-Detail] Post {obj.id} heat: {final_heat}")
+        return final_heat
+    
+    def get_is_liked(self, obj):
+        """当前用户是否已点赞"""
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        is_liked = obj.interactions.filter(
+            user=request.user,
+            interaction_type=ForumInteraction.LIKE
+        ).exists()
+        return is_liked
+
+
+# ==================== 新增交互序列化器 ====================
+
+class InteractionSerializer(serializers.ModelSerializer):
+    """帖子交互（点赞/转发）"""
+    class Meta:
+        model = ForumInteraction
+        fields = ['id', 'user', 'post', 'interaction_type', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class CommentLikeSerializer(serializers.ModelSerializer):
+    """评论点赞"""
+    class Meta:
+        model = CommentLike
+        fields = ['id', 'user', 'comment', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class PostReportSerializer(serializers.ModelSerializer):
+    """帖子举报"""
+    reported_by_username = serializers.CharField(source='reported_by.username', read_only=True)
+    reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = PostReport
+        fields = [
+            'id', 'post', 'reported_by', 'reported_by_username', 'reason',
+            'status', 'created_at', 'reviewed_at', 'reviewed_by', 'reviewed_by_username'
+        ]
+        read_only_fields = ['id', 'created_at', 'reviewed_at', 'reviewed_by']
+
+
+class CommentReportSerializer(serializers.ModelSerializer):
+    """评论举报"""
+    reported_by_username = serializers.CharField(source='reported_by.username', read_only=True)
+    reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = CommentReport
+        fields = [
+            'id', 'comment', 'reported_by', 'reported_by_username', 'reason',
+            'status', 'created_at', 'reviewed_at', 'reviewed_by', 'reviewed_by_username'
+        ]
+        read_only_fields = ['id', 'created_at', 'reviewed_at', 'reviewed_by']

@@ -65,8 +65,13 @@
 
           <div class="mt-12 pt-12 border-t border-outline-variant/10 flex items-center justify-between">
             <div class="flex items-center space-x-8">
-              <button @click="handleLike" class="flex items-center text-secondary/40 hover:text-primary transition-colors">
-                <HeartIcon class="w-5 h-5 mr-2" /> <span class="text-sm">{{ post.likes }}</span>
+              <button 
+                @click="handleLike" 
+                :class="post.is_liked ? 'text-red-500' : 'text-secondary/40 hover:text-primary'"
+                class="flex items-center transition-colors"
+              >
+                <HeartIcon :fill="post.is_liked ? 'currentColor' : 'none'" class="w-5 h-5 mr-2" /> 
+                <span class="text-sm">{{ post.likes }}</span>
               </button>
               <button @click="handleShare" class="flex items-center text-secondary/40 hover:text-primary transition-colors">
                 <ShareIcon class="w-5 h-5 mr-2" /> <span class="text-sm">分享</span>
@@ -172,7 +177,13 @@
                   </div>
 
                   <div class="flex items-center space-x-6 text-[10px] font-bold text-secondary/40 uppercase tracking-widest">
-                    <button @click="handleCommentLike" class="hover:text-primary transition-colors">赞同 ({{ comment.likes }})</button>
+                    <button 
+                      @click="handleCommentLike(comment)" 
+                      :class="comment.is_liked ? 'text-primary' : 'text-secondary/40 hover:text-primary'"
+                      class="transition-colors"
+                    >
+                      赞同 ({{ comment.likes }})
+                    </button>
                     <button class="hover:text-primary transition-colors" @click="replyTo(comment)">回复</button>
                     <button
                       v-if="canDeleteComment(comment)"
@@ -194,7 +205,13 @@
                         <p class="text-xs text-secondary/70 leading-relaxed">{{ reply.text }}</p>
                         <div class="mt-2 flex items-center space-x-4 text-[9px] font-bold text-secondary/30 uppercase tracking-widest">
                           <span>{{ reply.time }}</span>
-                          <button class="hover:text-primary" @click="handleCommentLike">赞同</button>
+                          <button 
+                            :class="reply.is_liked ? 'text-primary' : 'text-secondary/30 hover:text-primary'"
+                            class="transition-colors"
+                            @click="handleCommentLike(reply)"
+                          >
+                            赞同
+                          </button>
                           <button class="hover:text-primary" @click="replyTo(reply, comment)">回复</button>
                           <button
                             v-if="canDeleteComment(reply)"
@@ -279,9 +296,11 @@ const comments = ref<any[]>([]);
 const fetchPostDetail = async () => {
   try {
     loading.value = true;
+    console.log(`[DEBUG] Fetching post detail for post ${route.params.id}`);
     const res = await service.get(`/api/forum/posts/${route.params.id}/`);
     const data = res as any;
-    console.log('后端返回的原始数据:', res);
+    console.log('[DEBUG] Post detail response:', data);
+    
     // 处理后端 content (TextField) 转为前端数组
     // 如果后端存的是富文本，建议直接用 v-html；如果是纯文本换行，则 split
     if (typeof data.content === 'string') {
@@ -289,9 +308,10 @@ const fetchPostDetail = async () => {
     }
 
     post.value = data;
-    console.log('当前帖子图片列表:', post.value.images);
+    console.log(`[DEBUG] Post loaded: title=${post.value.title}, heat_score=${post.value.heat_score}, likes=${post.value.likes}, is_liked=${post.value.is_liked}`);
+    console.log('[DEBUG] Post images:', post.value.images);
   } catch (error) {
-    console.error('获取帖子失败:', error);
+    console.error('[ERROR] 获取帖子失败:', error);
   } finally {
     loading.value = false;
   }
@@ -300,13 +320,17 @@ const fetchPostDetail = async () => {
 const fetchComments = async () => {
   try {
     // 假设评论接口为 /api/forum/comments/?post=id
+    console.log(`[DEBUG] Fetching comments for post ${route.params.id}`);
     const res = await service.get('/api/forum/comments/', { 
       params: { post: route.params.id } 
     });
     comments.value = (res as any).results || res;
-    console.log('处理后的评论列表:', comments.value);
+    console.log(`[DEBUG] Comments fetched: ${comments.value.length} comments`);
+    comments.value.forEach((c: any) => {
+      console.log(`[DEBUG] Comment ${c.id} by ${c.author}: likes=${c.likes}, is_liked=${c.is_liked}`);
+    });
   } catch (error) {
-    console.error('获取评论失败:', error);
+    console.error('[ERROR] 获取评论失败:', error);
   }
 };
 
@@ -355,16 +379,37 @@ const handleShare = () => {
   }
 };
 
-const handleCommentLike = () => requireAuth(() => {});
-
 // 4. 互动操作
 const handleLike = async () => requireAuth(async () => {
   try {
-    // 假设后端 ViewSet 有自定义 action 'like'
-    await service.post(`/api/forum/posts/${post.value.id}/like/`);
-    post.value.likes++;
+    console.log(`[DEBUG] Liking post ${post.value.id}, current likes: ${post.value.likes}, is_liked: ${post.value.is_liked}`);
+    const action = post.value.is_liked ? 'unlike' : 'like';
+    const res = await service.post(`/api/forum/posts/${post.value.id}/interact/`, {
+      action: action
+    });
+    console.log(`[DEBUG] Like response:`, res);
+    post.value.likes = (res as any).likes;
+    post.value.is_liked = (res as any).is_liked;
+    console.log(`[DEBUG] Updated likes: ${post.value.likes}, is_liked: ${post.value.is_liked}`);
   } catch (error) {
-    console.error('点赞失败');
+    console.error('[ERROR] 点赞失败:', error);
+  }
+});
+
+const handleCommentLike = (comment: any) => requireAuth(async () => {
+  try {
+    console.log(`[DEBUG] Liking comment ${comment.id}, current likes: ${comment.likes}, is_liked: ${comment.is_liked}`);
+    if (comment.is_liked) {
+      await service.post(`/api/forum/comments/${comment.id}/unlike/`);
+      console.log(`[DEBUG] Comment unlike success`);
+    } else {
+      await service.post(`/api/forum/comments/${comment.id}/like/`);
+      console.log(`[DEBUG] Comment like success`);
+    }
+    // 重新获取评论列表以更新状态
+    await fetchComments();
+  } catch (error) {
+    console.error('[ERROR] 评论点赞失败:', error);
   }
 });
 
@@ -378,28 +423,37 @@ const handleDelete = () => requireAuth(async () => {
 // 5. 评论逻辑
 const submitComment = async () => {
   requireAuth(async () => {
-    if (!commentInput.value.trim()) return;
+    if (!commentInput.value.trim()) {
+      console.warn('[DEBUG] Comment input is empty');
+      return;
+    }
     try {
+      console.log(`[DEBUG] Submitting comment to post ${post.value.id}`);
       const res = await service.post('/api/forum/comments/', {
         post: post.value.id,
         text: commentInput.value,
         parent: replyTarget.value?.id ?? null
       });
+      console.log(`[DEBUG] Comment created:`, res);
       replyTarget.value = null;
+      
       // 上传评论图片（仅一级评论支持）
       if (commentImages.value.length) {
         const formData = new FormData();
         commentImages.value.forEach((img) => formData.append('images', img.file));
+        console.log(`[DEBUG] Uploading ${commentImages.value.length} images for comment ${(res as any).id}`);
         await service.post(`/api/forum/comments/${(res as any).id}/images/`, formData);
         commentImages.value.forEach((img) => URL.revokeObjectURL(img.preview));
         commentImages.value = [];
+        console.log(`[DEBUG] Images uploaded successfully`);
       }
-      fetchComments();
+      
+      await fetchComments();
       localStorage.removeItem(`post_draft_${route.params.id}`);
       commentInput.value = '';
       hasDraft.value = false;
     } catch (error) {
-
+      console.error('[ERROR] Comment submission failed:', error);
       alert('发布失败');
     }
   });
@@ -407,6 +461,7 @@ const submitComment = async () => {
 
 const saveDraft = () => {
   if (commentInput.value) {
+    console.log(`[DEBUG] Saving draft for post ${route.params.id}`);
     localStorage.setItem(`post_draft_${route.params.id}`, commentInput.value);
     hasDraft.value = true;
   } else {
@@ -415,24 +470,30 @@ const saveDraft = () => {
   }
 };
 const replyTarget = ref<{ id: number; author: string } | null>(null);
-const replyTo = (comment: any,rootComment?: any) => {
+const replyTo = (comment: any, rootComment?: any) => {
   requireAuth(() => {
     const parentId = rootComment ? rootComment.id : comment.id;
     replyTarget.value = { id: parentId, author: comment.author };
     commentInput.value = `@${comment.author} `;
+    console.log(`[DEBUG] Replying to comment ${parentId} by ${comment.author}`);
     saveDraft();
   });
 };
 
 // 6. 评论图片上传辅助
 const triggerCommentImageUpload = () => {
-  if (commentImages.value.length >= 5) return;
+  if (commentImages.value.length >= 5) {
+    console.warn('[DEBUG] Comment images limit reached (5)');
+    return;
+  }
+  console.log(`[DEBUG] Triggering comment image upload`);
   commentImageInputRef.value?.click();
 };
 
 const handleCommentImageChange = (e: Event) => {
   const files = Array.from((e.target as HTMLInputElement).files || []);
   const remaining = 5 - commentImages.value.length;
+  console.log(`[DEBUG] Comment images: ${files.length} selected, ${remaining} spaces remaining`);
   files.slice(0, remaining).forEach((file) => {
     commentImages.value.push({ file, preview: URL.createObjectURL(file) });
   });
@@ -440,6 +501,7 @@ const handleCommentImageChange = (e: Event) => {
 };
 
 const removeCommentImage = (idx: number) => {
+  console.log(`[DEBUG] Removing comment image ${idx}`);
   URL.revokeObjectURL(commentImages.value[idx].preview);
   commentImages.value.splice(idx, 1);
 };
@@ -457,9 +519,12 @@ const deleteComment = (comment: any) => {
   requireAuth(async () => {
     if (!confirm('确定删除此评论？其下所有回复也将同时删除。')) return;
     try {
+      console.log(`[DEBUG] Deleting comment ${comment.id}`);
       await service.delete(`/api/forum/comments/${comment.id}/`);
       comments.value = comments.value.filter((c: any) => c.id !== comment.id);
-    } catch {
+      console.log(`[DEBUG] Comment deleted successfully`);
+    } catch (err) {
+      console.error('[ERROR] 删除评论失败:', err);
       alert('删除失败');
     }
   });
@@ -470,9 +535,12 @@ const deleteReply = (parentComment: any, reply: any) => {
   requireAuth(async () => {
     if (!confirm('确定删除此回复？')) return;
     try {
+      console.log(`[DEBUG] Deleting reply ${reply.id}`);
       await service.delete(`/api/forum/comments/${reply.id}/`);
       parentComment.replies = parentComment.replies.filter((r: any) => r.id !== reply.id);
-    } catch {
+      console.log(`[DEBUG] Reply deleted successfully`);
+    } catch (err) {
+      console.error('[ERROR] 删除回复失败:', err);
       alert('删除失败');
     }
   });

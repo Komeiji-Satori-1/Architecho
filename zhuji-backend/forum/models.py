@@ -89,6 +89,8 @@ class ForumPost(models.Model):
     # views "1.2w"，likes "856"
     views = models.PositiveIntegerField(default=0, verbose_name='浏览数')
     likes = models.PositiveIntegerField(default=0, verbose_name='点赞数')
+    share_count = models.PositiveIntegerField(default=0, verbose_name='转发数')
+    heat_score = models.FloatField(default=0.0, verbose_name='热度分数', db_index=True)
 
     # ---- 时间字段 ----
     # time "3小时前" / "2024-03-20"，lastEdit "2024-03-21 14:30"
@@ -210,3 +212,199 @@ class Comment(models.Model):
 
     def __str__(self):
         return f'{self.author.username}: {self.text[:50]}'
+
+
+class ForumInteraction(models.Model):
+    """
+    用户与帖子的交互记录 — 防止重复点赞、支持撤销。
+    
+    应用场景：
+    - 防止用户重复点赞
+    - 支持点赞后撤销
+    - 统计用户活跃度
+    """
+    LIKE = 'like'
+    SHARE = 'share'
+    
+    TYPE_CHOICES = [
+        (LIKE, '点赞'),
+        (SHARE, '转发'),
+    ]
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='forum_interactions',
+        verbose_name='用户'
+    )
+    post = models.ForeignKey(
+        ForumPost,
+        on_delete=models.CASCADE,
+        related_name='interactions',
+        verbose_name='帖子'
+    )
+    interaction_type = models.CharField(
+        max_length=10,
+        choices=TYPE_CHOICES,
+        verbose_name='交互类型'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    
+    class Meta:
+        db_table = 'forum_interaction'
+        unique_together = ('user', 'post', 'interaction_type')
+        verbose_name = '论坛交互'
+        verbose_name_plural = '论坛交互列表'
+        indexes = [
+            models.Index(fields=['user', 'post']),
+            models.Index(fields=['interaction_type']),
+        ]
+    
+    def __str__(self):
+        return f'{self.user.username} - {self.post.title} ({self.interaction_type})'
+
+
+class CommentLike(models.Model):
+    """
+    评论点赞记录 — 防止重复点赞。
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comment_likes',
+        verbose_name='用户'
+    )
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.CASCADE,
+        related_name='liked_by',
+        verbose_name='评论'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    
+    class Meta:
+        db_table = 'forum_comment_like'
+        unique_together = ('user', 'comment')
+        verbose_name = '评论点赞'
+        verbose_name_plural = '评论点赞列表'
+    
+    def __str__(self):
+        return f'{self.user.username} liked {self.comment.id}'
+
+
+class PostReport(models.Model):
+    """
+    帖子举报 — 记录用户举报的帖子信息。
+    """
+    STATUS_PENDING = 'pending'
+    STATUS_REVIEWED = 'reviewed'
+    STATUS_DISMISSED = 'dismissed'
+    STATUS_DELETED = 'deleted'
+    
+    STATUS_CHOICES = [
+        (STATUS_PENDING, '待审核'),
+        (STATUS_REVIEWED, '已审核'),
+        (STATUS_DISMISSED, '驳回'),
+        (STATUS_DELETED, '已删除'),
+    ]
+    
+    post = models.ForeignKey(
+        ForumPost,
+        on_delete=models.CASCADE,
+        related_name='reports',
+        verbose_name='被举报帖子'
+    )
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='post_reports',
+        verbose_name='举报人'
+    )
+    reason = models.CharField(max_length=500, verbose_name='举报原因')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        verbose_name='处理状态'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='审核时间')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='post_report_reviews',
+        verbose_name='审核管理员'
+    )
+    
+    class Meta:
+        db_table = 'forum_post_report'
+        verbose_name = '帖子举报'
+        verbose_name_plural = '帖子举报列表'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f'Report: {self.post.title} by {self.reported_by.username}'
+
+
+class CommentReport(models.Model):
+    """
+    评论举报 — 记录用户举报的评论信息。
+    """
+    STATUS_PENDING = 'pending'
+    STATUS_REVIEWED = 'reviewed'
+    STATUS_DISMISSED = 'dismissed'
+    STATUS_DELETED = 'deleted'
+    
+    STATUS_CHOICES = [
+        (STATUS_PENDING, '待审核'),
+        (STATUS_REVIEWED, '已审核'),
+        (STATUS_DISMISSED, '驳回'),
+        (STATUS_DELETED, '已删除'),
+    ]
+    
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.CASCADE,
+        related_name='reports',
+        verbose_name='被举报评论'
+    )
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='comment_reports',
+        verbose_name='举报人'
+    )
+    reason = models.CharField(max_length=500, verbose_name='举报原因')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        verbose_name='处理状态'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='审核时间')
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='comment_report_reviews',
+        verbose_name='审核管理员'
+    )
+    
+    class Meta:
+        db_table = 'forum_comment_report'
+        verbose_name = '评论举报'
+        verbose_name_plural = '评论举报列表'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f'Report: Comment {self.comment.id} by {self.reported_by.username}'
