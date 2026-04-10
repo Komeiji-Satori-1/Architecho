@@ -44,7 +44,7 @@ python -m venv venv
 # 2. 安装依赖
 pip install -r requirements.txt
 ```
-
+此处环境配置详细内容请参考前后端文件夹下的README.md
 ---
 
 ## 第四阶段：提交与推送 (Commit & Push)
