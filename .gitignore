@@ -25,3 +25,34 @@ zhuji-frontend/yarn-error.log*
 Thumbs.db
 *.log
 *.tmp
+# --- Python / Django 相关 ---
+zhuji-backend/venv/
+zhuji-backend/__pycache__/
+zhuji-backend/*/__pycache__/
+zhuji-backend/*.pyc
+zhuji-backend/db.sqlite3
+zhuji-backend/media/
+zhuji-backend/static/
+zhuji-backend/logs/
+zhuji-backend/.env
+
+# --- Vue / Node 相关 ---
+zhuji-frontend/node_modules/
+zhuji-frontend/dist/
+zhuji-frontend/.env.local
+zhuji-frontend/.env.*.local
+zhuji-frontend/npm-debug.log*
+zhuji-frontend/yarn-debug.log*
+zhuji-frontend/yarn-error.log*
+
+# --- 编辑器与系统相关 ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+venv/
+.venv/
+__pycache__/
+*.pyc
