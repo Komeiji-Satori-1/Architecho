@@ -33,7 +33,7 @@
             <div class="bg-white rounded-2xl overflow-hidden border border-outline-variant/10 hover:shadow-xl transition-all duration-500">
               <div class="relative overflow-hidden">
                 <img 
-                  :src="item.image" 
+                  :src="item.cover" 
                   class="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700"
                   referrerpolicy="no-referrer"
                 />
@@ -50,7 +50,7 @@
                   </div>
                   <div class="flex items-center space-x-1 text-secondary/40">
                     <HeartIcon class="w-3 h-3" />
-                    <span class="text-[10px]">{{ item.likes }}</span>
+                    <span class="text-[10px]">{{ formatLikes(item.likes) }}</span>
                   </div>
                 </div>
               </div>
@@ -152,14 +152,14 @@
             <div class="space-y-10">
               <div v-for="progress in myProgress" :key="progress.id" class="relative">
                 <div class="flex items-start space-x-4 mb-6">
-                  <img :src="progress.image" class="w-16 h-16 rounded-xl object-cover" referrerpolicy="no-referrer" />
+                  <img :src="progress.cover" class="w-16 h-16 rounded-xl object-cover" referrerpolicy="no-referrer" />
                   <div>
-                    <h4 class="font-bold text-on-surface mb-1">{{ progress.name }}</h4>
+                    <h4 class="font-bold text-on-surface mb-1">{{ progress.title }}</h4>
                     <span 
                       class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
-                      :class="progress.status === '已采纳' ? 'bg-green-100 text-green-700' : 'bg-secondary/10 text-secondary/60'"
+                      :class="progress.status === 'adopted' ? 'bg-green-100 text-green-700' : 'bg-secondary/10 text-secondary/60'"
                     >
-                      {{ progress.status }}
+                      {{ progress.status === 'adopted' ? '已采纳' : '待审核' }}
                     </span>
                   </div>
                 </div>
@@ -168,12 +168,12 @@
                 <div class="space-y-4">
                   <div class="flex justify-between text-[10px] font-bold text-secondary/40 uppercase tracking-widest">
                     <span>官方反馈进度</span>
-                    <span>{{ progress.percent }}%</span>
+                    <span>{{ progress.progress_percent }}%</span>
                   </div>
                   <div class="w-full h-1.5 bg-secondary/5 rounded-full overflow-hidden">
                     <div 
                       class="h-full bg-primary transition-all duration-1000"
-                      :style="{ width: `${progress.percent}%` }"
+                      :style="{ width: `${progress.progress_percent}%` }"
                     ></div>
                   </div>
                   <div class="flex justify-between text-[9px] text-secondary/40">
@@ -210,6 +210,7 @@ import {
   Image as ImageIcon,
   X as XIcon
 } from 'lucide-vue-next';
+import request from '@/api/request';
 
 const activeTab = ref('众创灵感');
 const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
@@ -219,22 +220,37 @@ const form = reactive({
   desc: '',
   images: [] as string[]
 });
-onMounted(() => {
+
+const coCreations = ref<any[]>([]);
+const myProgress = ref<any[]>([]);
+const loading = ref(false);
+
+const fetchCoCreations = async () => {
+  try {
+    const data = await request.get('/api/cocreation/items/');
+    coCreations.value = data.results || data;
+  } catch (e) {
+    console.error('Failed to fetch coCreations:', e);
+  }
+};
+
+const fetchMyProgress = async () => {
+  if (!localStorage.getItem('access_token')) return;
+  try {
+    const data = await request.get('/api/cocreation/my-progress/');
+    myProgress.value = data;
+  } catch (e) {
+    console.error('Failed to fetch myProgress:', e);
+  }
+};
+
+onMounted(async () => {
   if (!localStorage.getItem('access_token')) {
     toggleAuth?.(true);
   }
+  await fetchCoCreations();
+  await fetchMyProgress();
 });
-const coCreations = [
-  { id: 1, title: '榫卯折叠案几', author: '林清川', avatar: 'https://picsum.photos/seed/u1/100/100', likes: '1.2k', image: 'https://picsum.photos/seed/c1/600/800', featured: true },
-  { id: 2, title: '窗棂系列耳饰', author: '九灯', avatar: 'https://picsum.photos/seed/u2/100/100', likes: '2.4k', image: 'https://picsum.photos/seed/c2/600/600' },
-  { id: 3, title: '浮图香薰炉', author: '莫听雨', avatar: 'https://picsum.photos/seed/u3/100/100', likes: '856', image: 'https://picsum.photos/seed/c3/600/900' },
-  { id: 4, title: '雀替挂钩系列', author: '张小木', avatar: 'https://picsum.photos/seed/u4/100/100', likes: '432', image: 'https://picsum.photos/seed/c4/600/700' }
-];
-
-const myProgress = [
-  { id: 1, name: '雀替挂钩系列', status: '已采纳', percent: 75, image: 'https://picsum.photos/seed/c4/100/100' },
-  { id: 2, name: '朱红拼图盒', status: '待审核', percent: 25, image: 'https://picsum.photos/seed/c5/100/100' }
-];
 
 const addImage = () => {
   const newImg = `https://picsum.photos/seed/${Math.random()}/400/400`;
@@ -244,6 +260,14 @@ const addImage = () => {
 const removeImage = (idx: number) => {
   form.images.splice(idx, 1);
 };
+
+const formatLikes = (likes: number) => {
+  if (likes >= 1000) {
+    return (likes / 1000).toFixed(1) + 'k';
+  }
+  return likes.toString();
+};
+
 const requireAuth = (callback: () => void) => {
   if (!localStorage.getItem('access_token')) {
     toggleAuth?.(true);
@@ -251,16 +275,27 @@ const requireAuth = (callback: () => void) => {
   }
   callback();
 };
-const handleSubmit = () => {
+
+const handleSubmit = async () => {
   if (!localStorage.getItem('access_token')) {
     toggleAuth?.(true);
     return;
   };
-  console.log('Form submitted:', form);
-  alert('创意已提交，请耐心等待官方初审。');
-  form.name = '';
-  form.desc = '';
-  form.images = [];
+  try {
+    await request.post('/api/cocreation/create/', {
+      title: form.name,
+      material: form.material,
+      desc: form.desc,
+    });
+    alert('创意已提交，请耐心等待官方初审。');
+    form.name = '';
+    form.desc = '';
+    form.images = [];
+    await fetchMyProgress();
+  } catch (e) {
+    console.error('Failed to submit:', e);
+    alert('提交失败，请重试');
+  }
 };
 </script>
 
