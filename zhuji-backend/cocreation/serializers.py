@@ -102,3 +102,14 @@ class CoCreationListSerializer(serializers.ModelSerializer):
         if obj.cover and request:
             return request.build_absolute_uri(obj.cover.url)
         return None
+
+
+class CoCreationWriteSerializer(serializers.ModelSerializer):
+    """共创筑品创建/更新序列化器。"""
+
+    class Meta:
+        model = CoCreationItem
+        fields = ['title', 'material', 'desc', 'cover']
+        extra_kwargs = {
+            'cover': {'required': False},
+        }

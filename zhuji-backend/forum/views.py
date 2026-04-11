@@ -2,7 +2,8 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from django.utils import timezone
-from django.db.models import Prefetch
+from django.db.models import Prefetch, F, Value, FloatField, Count, ExpressionWrapper
+from django.db.models.functions import Greatest, Power, ExtractDay
 from .models import (
     ForumCategory, ForumPost, Comment, PostImage, CommentImage,
     ForumInteraction, CommentLike, PostReport, CommentReport
@@ -55,21 +56,26 @@ class ForumPostViewSet(viewsets.ModelViewSet):
         return ForumPostListSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset().order_by('-is_top', '-created_at')
+        qs = super().get_queryset().annotate(
+            comment_count_val=Count('comments'),
+        ).order_by('-is_top', '-created_at')
         category = self.request.query_params.get('category')
         if category:
-            print(f"[DEBUG-Views] Filtering by category: {category}")
             qs = qs.filter(category__id=category)
         is_essence = self.request.query_params.get('is_essence')
         if is_essence == 'true':
-            print(f"[DEBUG-Views] Filtering by essence")
             qs = qs.filter(is_essence=True)
         ordering = self.request.query_params.get('ordering')
-        if ordering in ('-created_at', 'created_at', '-views', 'views', '-heat_score', 'heat_score'):
-            print(f"[DEBUG-Views] Applying ordering: {ordering}")
+        if ordering == '-heat_score':
+            # 热度 = views*0.2 + likes*0.3 + comments*0.5，按降序
+            qs = qs.annotate(
+                computed_heat=ExpressionWrapper(
+                    F('views') * 0.2 + F('likes') * 0.3 + F('comment_count_val') * 0.5,
+                    output_field=FloatField(),
+                ),
+            ).order_by('-computed_heat')
+        elif ordering in ('-created_at', 'created_at', '-views', 'views'):
             qs = qs.order_by(ordering)
-        else:
-            print(f"[DEBUG-Views] Using default ordering")
         return qs
 
 

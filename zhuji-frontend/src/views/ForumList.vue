@@ -180,7 +180,7 @@ async function fetchPosts() {
     }
     if (activeTab.value === '热门') {
       console.log('[DEBUG] Sorting by heat score');
-      params.ordering = 'heat_score';
+      params.ordering = '-heat_score';
     }
     if (activeTab.value === '最新发布') {
       console.log('[DEBUG] Sorting by created_at');
@@ -202,18 +202,24 @@ async function fetchPosts() {
 onMounted(async () => {
   await fetchCategories();
   await fetchPosts();
+  fetchLeaderboard();
 });
 
 watch([activeCategory, activeTab], () => {
   fetchPosts();
 });
 
-// ─── 活跃榜（待 users API 扩展后对接，暂用占位数据） ───────────────────
-const topUsers = [
-  { name: '云栖墨客', power: '9.8k', avatar: 'https://picsum.photos/seed/u1/100/100', badges: 3 },
-  { name: '木构灵魂', power: '8.2k', avatar: 'https://picsum.photos/seed/u2/100/100', badges: 2 },
-  { name: '丹青绘影', power: '7.5k', avatar: 'https://picsum.photos/seed/u3/100/100', badges: 2 },
-];
+// ─── 活跃榜（来自后端 API） ───────────────────
+const topUsers = ref<any[]>([]);
+
+async function fetchLeaderboard() {
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/api/users/leaderboard/');
+    topUsers.value = res.data;
+  } catch {
+    topUsers.value = [];
+  }
+}
 
 // ─── 搜索（客户端过滤） ──────────────────────────────────────────
 const filteredPosts = computed(() => {

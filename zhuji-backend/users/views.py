@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
+from django.db.models import F, Value, FloatField, Count, ExpressionWrapper
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes as perm_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -149,3 +150,37 @@ class RegisterView(APIView):
                 'level_title': user.level_title,
             },
         }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@perm_classes([permissions.AllowAny])
+def leaderboard(request):
+    """
+    活跃榜：按影响力(帖子数*3 + 点赞数*1 + 答题正确数*2)降序取前 10。
+    GET /api/users/leaderboard/
+    """
+    users = (
+        User.objects
+        .filter(is_active=True, role=User.ROLE_USER)
+        .annotate(
+            post_cnt=Count('forum_posts'),
+            power=ExpressionWrapper(
+                F('post_cnt') * 3 + F('quiz_correct_count') * 2,
+                output_field=FloatField(),
+            ),
+        )
+        .order_by('-power')[:10]
+    )
+    result = []
+    for u in users:
+        avatar = None
+        if u.avatar and request:
+            avatar = request.build_absolute_uri(u.avatar.url)
+        result.append({
+            'id': u.id,
+            'name': u.username,
+            'power': f'{u.power:.0f}' if u.power >= 1000 else f'{u.power:.0f}',
+            'avatar': avatar or f'https://picsum.photos/seed/u{u.id}/100/100',
+            'badges': min(u.level_num, 5),
+        })
+    return Response(result)

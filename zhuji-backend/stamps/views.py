@@ -29,6 +29,49 @@ def my_progress(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
+def my_overall_progress(request):
+    """
+    全部古建印章收集总览。
+    GET /api/stamps/my-overall-progress/
+    返回: { collected: 已完全解锁数, total: 总印章数, progress: 百分比, stamps: [...] }
+    """
+    all_stamps = Stamp.objects.prefetch_related('color_layers').all()
+    user_stamps = {
+        us.stamp_id: us
+        for us in UserStamp.objects.filter(user=request.user).select_related('stamp')
+    }
+
+    stamps_data = []
+    total = all_stamps.count()
+    collected = 0
+
+    for stamp in all_stamps:
+        us = user_stamps.get(stamp.id)
+        unlocked = us.unlocked_layers if us else 0
+        is_complete = unlocked >= stamp.total_layers and stamp.total_layers > 0
+        if is_complete:
+            collected += 1
+        stamps_data.append({
+            'stamp_id': stamp.id,
+            'name': stamp.name,
+            'monument_name': stamp.monument.name if stamp.monument else None,
+            'unlocked_layers': unlocked,
+            'total_layers': stamp.total_layers,
+            'is_complete': is_complete,
+        })
+
+    progress = int((collected / total) * 100) if total > 0 else 0
+    return Response({
+        'collected': collected,
+        'total': total,
+        'progress': progress,
+        'description': f'已集齐 {collected}/{total} 枚印章' if total > 0 else '暂无印章数据',
+        'stamps': stamps_data,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
 def my_stamp_for_monument(request, monument_id):
     """获取指定古建对应的用户印章进度"""
     stamp = Stamp.objects.filter(monument_id=monument_id).prefetch_related('color_layers').first()

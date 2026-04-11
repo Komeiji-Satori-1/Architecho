@@ -5,6 +5,7 @@ from .models import CoCreationItem, CoCreationImage
 from .serializers import (
     CoCreationNewsSerializer,
     CoCreationListSerializer,
+    CoCreationWriteSerializer,
     CoCreationAuditSerializer,
     CoCreationDetailSerializer,
 )
@@ -56,8 +57,12 @@ def my_progress(request):
 
 class CoCreationItemViewSet(viewsets.ModelViewSet):
     queryset = CoCreationItem.objects.select_related('author').all()
-    serializer_class = CoCreationListSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return CoCreationWriteSerializer
+        return CoCreationListSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()
