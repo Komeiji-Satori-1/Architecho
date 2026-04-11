@@ -55,7 +55,6 @@
                   v-if="currentPageIndex < pages.length - 1"
                   @click="goToNextPage"
                   class="px-6 py-3 bg-primary text-white text-sm font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-primary-container transition-all flex items-center"
-                  :disabled="pageQuizPending"
                 >
                   下一页 <ArrowRightIcon class="w-4 h-4 ml-2" />
                 </button>
@@ -70,24 +69,27 @@
               </div>
             </div>
 
-            <!-- Quiz Section (appears between pages) -->
+            <!-- Quiz Section (inline, always shown when page has questions) -->
             <transition name="quiz-slide">
-              <div v-if="showQuiz && currentQuiz" class="bg-white rounded-2xl p-8 md:p-12 border border-primary/20 shadow-lg mb-8">
+              <div v-if="currentPage?.quiz_questions?.length" class="bg-white rounded-2xl p-8 md:p-12 border border-primary/20 shadow-lg mb-8">
                 <div class="flex items-center gap-3 mb-8">
                   <div class="px-3 py-1 bg-primary text-white text-[10px] font-bold uppercase tracking-widest rounded">
-                    {{ currentQuiz.question_type === 'multi' ? '多选题' : '单选题' }}
+                    {{ currentPage.quiz_questions[0].question_type === 'multi' ? '多选题' : '单选题' }}
                   </div>
-                  <span class="text-[10px] text-secondary/40 font-bold">答对 +{{ currentQuiz.points }} 积分</span>
+                  <span class="text-[10px] text-secondary/40 font-bold">答对 +{{ currentPage.quiz_questions[0].points }} 积分</span>
+                  <span v-if="quizSubmitted" class="ml-auto text-[10px] font-bold" :class="quizResult?.is_correct ? 'text-green-600' : 'text-red-500'">
+                    {{ quizResult?.is_correct ? '✓ 回答正确' : '✗ 回答有误' }}
+                  </span>
                 </div>
 
                 <!-- Question -->
-                <p class="text-lg font-serif mb-4">{{ currentQuiz.description }}</p>
-                <img v-if="currentQuiz.image" :src="currentQuiz.image" class="w-full max-w-md rounded-xl mb-6" referrerpolicy="no-referrer" />
+                <p class="text-lg font-serif mb-4">{{ currentPage.quiz_questions[0].description }}</p>
+                <img v-if="currentPage.quiz_questions[0].image" :src="currentPage.quiz_questions[0].image" class="w-full max-w-md rounded-xl mb-6" referrerpolicy="no-referrer" />
 
                 <!-- Options -->
                 <div class="space-y-3 mb-8">
                   <div 
-                    v-for="opt in currentQuiz.options" 
+                    v-for="opt in currentPage.quiz_questions[0].options" 
                     :key="opt.id"
                     class="flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all"
                     :class="optionClass(opt)"
@@ -105,7 +107,7 @@
                   </div>
                 </div>
 
-                <!-- Submit -->
+                <!-- Submit / Result -->
                 <div v-if="!quizSubmitted" class="flex gap-4">
                   <button 
                     @click="submitQuizAnswer"
@@ -115,25 +117,9 @@
                     {{ quizSubmitting ? '提交中...' : '确认提交' }}
                   </button>
                 </div>
-
-                <!-- Result -->
-                <div v-else class="p-6 rounded-xl" :class="quizResult?.is_correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'">
-                  <div class="flex items-center gap-3 mb-2">
-                    <CheckCircleIcon v-if="quizResult?.is_correct" class="w-5 h-5 text-green-600" />
-                    <XCircleIcon v-else class="w-5 h-5 text-red-600" />
-                    <span class="font-bold text-sm" :class="quizResult?.is_correct ? 'text-green-700' : 'text-red-700'">
-                      {{ quizResult?.is_correct ? '答对了！匠心独具。' : '回答有误，再接再厉。' }}
-                    </span>
-                  </div>
-                  <p v-if="quizResult?.is_correct" class="text-xs text-green-600">
-                    获得 {{ quizResult.points_earned }} 积分
-                    <span v-if="quizResult.stamp_unlocked"> · 印章解锁新图层！</span>
-                  </p>
-                  <button 
-                    v-if="currentPageIndex < pages.length - 1"
-                    @click="dismissQuizAndNext"
-                    class="mt-4 px-6 py-2 bg-primary text-white text-xs font-bold rounded-lg"
-                  >继续阅读下一页</button>
+                <div v-else class="p-4 rounded-xl text-sm" :class="quizResult?.is_correct ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'">
+                  <p v-if="quizResult?.is_correct">获得 {{ quizResult.points_earned }} 积分<span v-if="quizResult.stamp_unlocked"> · 印章解锁新图层！</span></p>
+                  <p v-else>已记录作答，继续阅读。</p>
                 </div>
               </div>
             </transition>
@@ -239,8 +225,6 @@ import {
   ArrowLeft as ArrowLeftIcon,
   ArrowRight as ArrowRightIcon,
   Check as CheckIcon,
-  CheckCircle as CheckCircleIcon,
-  XCircle as XCircleIcon,
   Gift as GiftIcon,
   Award as AwardIcon,
 } from 'lucide-vue-next';
@@ -258,8 +242,6 @@ const stampData = ref<any>({});
 const showCelebration = ref(false);
 
 // Quiz state
-const showQuiz = ref(false);
-const currentQuiz = ref<any>(null);
 const selectedOptionIds = ref<number[]>([]);
 const quizSubmitted = ref(false);
 const quizSubmitting = ref(false);
@@ -267,10 +249,11 @@ const quizResult = ref<any>(null);
 const answeredPages = ref<Set<number>>(new Set());
 
 const currentPage = computed(() => pages.value[currentPageIndex.value]);
-const pageQuizPending = computed(() => {
-  const page = currentPage.value;
-  if (!page?.quiz_questions?.length) return false;
-  return !answeredPages.value.has(page.id);
+
+watch(currentPageIndex, () => {
+  selectedOptionIds.value = [];
+  quizSubmitted.value = false;
+  quizResult.value = null;
 });
 
 const allCompleted = computed(() => {
@@ -313,7 +296,8 @@ const isSelected = (optId: number) => selectedOptionIds.value.includes(optId);
 
 const toggleOption = (opt: any) => {
   if (quizSubmitted.value) return;
-  if (currentQuiz.value?.question_type === 'multi') {
+  const quiz = currentPage.value?.quiz_questions?.[0];
+  if (quiz?.question_type === 'multi') {
     const idx = selectedOptionIds.value.indexOf(opt.id);
     if (idx >= 0) selectedOptionIds.value.splice(idx, 1);
     else selectedOptionIds.value.push(opt.id);
@@ -333,11 +317,12 @@ const optionClass = (opt: any) => {
 };
 
 const submitQuizAnswer = async () => {
-  if (!currentQuiz.value || !selectedOptionIds.value.length) return;
+  const quiz = currentPage.value?.quiz_questions?.[0];
+  if (!quiz || !selectedOptionIds.value.length) return;
   quizSubmitting.value = true;
   try {
     const res = await service.post('/api/quiz/submit-answer/', {
-      question_id: currentQuiz.value.id,
+      question_id: quiz.id,
       selected_option_ids: selectedOptionIds.value,
     }) as any;
     quizResult.value = res;
@@ -360,22 +345,6 @@ const submitQuizAnswer = async () => {
 };
 
 const goToNextPage = () => {
-  const page = currentPage.value;
-  // If current page has quiz and not answered, show quiz
-  if (page?.quiz_questions?.length && !answeredPages.value.has(page.id)) {
-    currentQuiz.value = page.quiz_questions[0];
-    selectedOptionIds.value = [];
-    quizSubmitted.value = false;
-    quizResult.value = null;
-    showQuiz.value = true;
-    return;
-  }
-  advanceToNextPage();
-};
-
-const advanceToNextPage = () => {
-  showQuiz.value = false;
-  currentQuiz.value = null;
   if (currentPageIndex.value < pages.value.length - 1) {
     currentPageIndex.value++;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -383,16 +352,10 @@ const advanceToNextPage = () => {
 };
 
 const goToPrevPage = () => {
-  showQuiz.value = false;
-  currentQuiz.value = null;
   if (currentPageIndex.value > 0) {
     currentPageIndex.value--;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-};
-
-const dismissQuizAndNext = () => {
-  advanceToNextPage();
 };
 
 onMounted(async () => {

@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from django.utils import timezone
+from django.db.models import Prefetch
 from .models import (
     ForumCategory, ForumPost, Comment, PostImage, CommentImage,
     ForumInteraction, CommentLike, PostReport, CommentReport
@@ -161,8 +162,12 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        qs = super().get_queryset()
-
+        qs = Comment.objects.select_related('author')
+        replies_qs = Comment.objects.select_related('author').order_by('created_at')
+        qs = qs.prefetch_related(
+            'images', # 预加载图片
+            Prefetch('replies', queryset=replies_qs) # 预加载回复及其作者
+        )
         if self.action == 'list':
             # 如果是获取某个帖子的评论列表，只看一级评论
             # 如果是具体某个 ID 的操作（delete/patch），不走这里

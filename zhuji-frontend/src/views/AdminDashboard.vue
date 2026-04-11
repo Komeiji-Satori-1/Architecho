@@ -64,7 +64,7 @@
                 <div class="flex justify-between items-start mb-4">
                   <p class="text-[10px] font-bold text-secondary/40 uppercase tracking-widest">{{ stat.label }}</p>
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded" :class="stat.trendClass">{{ stat.trend
-                    }}</span>
+                  }}</span>
                 </div>
                 <div class="flex items-baseline">
                   <span class="text-3xl font-serif text-on-surface">{{ stat.value }}</span>
@@ -162,7 +162,7 @@
                         class="px-6 py-2 bg-primary text-white text-xs font-bold rounded-xl">通过</button>
                     </div>
                     <p v-else class="text-xs text-secondary/40 italic">{{ item.raw_status === 'approved' ? '✓ 已通过' :
-                      '✕已驳回'}}</p>
+                      '✕已驳回' }}</p>
                   </div>
                 </div>
               </div>
@@ -210,7 +210,7 @@
                     </td>
                     <td class="px-8 py-6">
                       <span class="px-3 py-1 rounded-full text-[10px] font-bold" :class="user.roleBg">{{ user.role
-                        }}</span>
+                      }}</span>
                     </td>
                     <td class="px-8 py-6">
                       <div class="flex items-center">
@@ -710,6 +710,13 @@
             <option :value="null">请选择关联古建</option>
             <option v-for="m in monumentList" :key="m.id" :value="m.id">{{ m.name }}</option>
           </select>
+          <select v-model="quizForm.article_page"
+            class="w-full bg-surface border-none rounded-xl p-4 text-sm focus:ring-1 focus:ring-primary/20">
+            <option :value="null">不绑定文章页（可选）</option>
+            <option v-for="p in articlePageList" :key="p.id" :value="p.id">
+              第 {{ p.page_number }} 页（{{ p.id }}）
+            </option>
+          </select>
           <div class="flex items-center gap-4">
             <label
               class="cursor-pointer px-4 py-2 bg-surface rounded-xl text-xs font-bold text-secondary hover:bg-secondary/10 transition-all">
@@ -893,6 +900,7 @@ const fetchQuizList = async () => {
 const fetchMonuments = async () => {
   const res = await service.get('/api/monuments/monuments/') as any;
   monumentList.value = (res.results || res).filter((m: any) => m.is_published);
+  console.log('Monuments:', monumentList.value);
 };
 
 const showQuizModal = ref(false);
@@ -902,6 +910,7 @@ const quizForm = ref({
   question_type: 'single' as 'single' | 'multi',
   monument: null as number | null,
   points: 10,
+  article_page: null as number | null,
   // 选项列表：至少需要展示 correct_answer + distractor_a + distractor_b
   options: [
     { label: '', is_correct: true, order: 0 },   // 正确答案
@@ -921,6 +930,7 @@ const openQuizModal = (quiz: any) => {
       question_type: quiz.question_type || 'single',
       monument: quiz.monument,
       points: quiz.points ?? 10,
+      article_page: quiz.article_page ?? null,
       options: quiz.options?.length
         ? quiz.options.map((o: any) => ({ label: o.label, is_correct: o.is_correct, order: o.order }))
         : [{ label: '', is_correct: true, order: 0 }, { label: '', is_correct: false, order: 1 }, { label: '', is_correct: false, order: 2 }],
@@ -933,6 +943,7 @@ const openQuizModal = (quiz: any) => {
       question_type: 'single',
       monument: null,
       points: 10,
+      article_page: null,
       options: [
         { label: '', is_correct: true, order: 0 },
         { label: '', is_correct: false, order: 1 },
@@ -972,7 +983,7 @@ const saveQuiz = async () => {
     fd.append('points', String(quizForm.value.points));
     if (quizForm.value.monument) fd.append('monument', String(quizForm.value.monument));
     if (quizImageFile.value) fd.append('image', quizImageFile.value);
-
+    if (quizForm.value.article_page) fd.append('article_page', String(quizForm.value.article_page));
     let questionId = editingQuizId.value;
     if (questionId) {
       await service.patch(`/api/quiz/questions/${questionId}/`, fd);
@@ -1230,6 +1241,22 @@ const editingPageId = ref<number | null>(null);
 const pageArticleId = ref<number | null>(null);
 const pageForm = ref({ page_number: 1, content: '' });
 const pageSaving = ref(false);
+
+const articlePageList = computed(() => {
+  if (!quizForm.value.monument) return [];
+
+  const relatedArticles = mgmtArticleList.value.filter(
+    (a: any) => a.monument === quizForm.value.monument
+  );
+  return relatedArticles.flatMap((a: any) =>
+    (a.pages || []).map((p: any) => ({
+      ...p,
+      article_title: a.title,
+      // 生成一个有意义的标签用于显示
+      label: `《${a.title}》- 第 ${p.page_number} 页 (ID: ${p.id})`
+    }))
+  );
+});
 
 const fetchMgmtArticles = async () => {
   try {

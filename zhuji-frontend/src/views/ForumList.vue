@@ -180,7 +180,7 @@ async function fetchPosts() {
     }
     if (activeTab.value === '热门') {
       console.log('[DEBUG] Sorting by heat score');
-      params.ordering = '-heat_score';
+      params.ordering = 'heat_score';
     }
     if (activeTab.value === '最新发布') {
       console.log('[DEBUG] Sorting by created_at');

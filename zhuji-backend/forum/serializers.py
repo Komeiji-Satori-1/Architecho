@@ -152,8 +152,7 @@ class CommentSerializer(serializers.ModelSerializer):
     def get_replies(self, obj):
         if obj.parent is not None:
             return []
-        children = obj.replies.select_related('author').order_by('created_at')
-        return CommentSerializer(children, many=True, context=self.context).data
+        return CommentSerializer(obj.replies.all(), many=True, context=self.context).data
     
     def get_is_liked(self, obj):
         """当前用户是否已点赞该评论"""
