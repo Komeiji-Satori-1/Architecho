@@ -13,6 +13,10 @@
       <div class="absolute top-4 left-4 bg-primary/90 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest">
         {{ post.category_name }}
       </div>
+      <!-- 热度徽章 -->
+      <div v-if="post.heat_score" class="absolute top-4 right-4 bg-red-500/90 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest">
+        🔥 {{ post.heat_score }}
+      </div>
     </div>
     
     <div class="p-6">
@@ -35,6 +39,9 @@
           <span class="flex items-center">
             <MessageSquareIcon class="w-3 h-3 mr-1" /> {{ post.comment_count }}
           </span>
+          <span class="flex items-center" v-if="post.likes > 0">
+            ❤️ {{ post.likes }}
+          </span>
         </div>
       </div>
     </div>
@@ -53,6 +60,8 @@ interface Post {
   author_avatar?: string | null;
   views: number;
   comment_count: number;
+  likes: number;
+  heat_score?: number;
 }
 
 const props = defineProps<{
@@ -62,7 +71,7 @@ const props = defineProps<{
 const emit = defineEmits(['click']);
 
 const handleClick = () => {
+  console.log(`[DEBUG] Clicking post ${props.post.id}: ${props.post.title}`);
   emit('click', props.post.id);
-  // TODO: 跳转至详情页
 };
 </script>
