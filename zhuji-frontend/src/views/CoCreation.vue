@@ -28,8 +28,7 @@
           <div 
             v-for="item in coCreations" 
             :key="item.id"
-            class="break-inside-avoid group cursor-pointer"
-          >
+            class="break-inside-avoid group cursor-pointer"            @click="openDetail(item)"          >
             <div class="bg-white rounded-2xl overflow-hidden border border-outline-variant/10 hover:shadow-xl transition-all duration-500">
               <div class="relative overflow-hidden">
                 <img 
@@ -110,14 +109,28 @@
               </div>
 
               <div class="space-y-3">
+                <label class="text-[10px] font-bold text-secondary/40 uppercase tracking-widest">封面图</label>
+                <div 
+                  @click="selectCover"
+                  class="w-full h-48 bg-surface border-2 border-dashed border-outline-variant/20 rounded-xl flex flex-col items-center justify-center text-secondary/40 hover:text-primary hover:border-primary/40 transition-all cursor-pointer overflow-hidden"
+                >
+                  <img v-if="form.coverPreview" :src="form.coverPreview" class="w-full h-full object-cover" />
+                  <template v-else>
+                    <ImageIcon class="w-8 h-8 mb-2" />
+                    <span class="text-[10px] font-bold uppercase">上传封面图</span>
+                  </template>
+                </div>
+              </div>
+
+              <div class="space-y-3">
                 <label class="text-[10px] font-bold text-secondary/40 uppercase tracking-widest">灵感图上传</label>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div 
-                    v-for="(img, idx) in form.images" 
+                    v-for="(img, idx) in form.imagePreviews" 
                     :key="idx"
                     class="aspect-square bg-surface rounded-xl overflow-hidden relative group"
                   >
-                    <img :src="img" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
+                    <img :src="img" class="w-full h-full object-cover" />
                     <button @click="removeImage(idx)" class="absolute top-2 right-2 bg-on-surface/80 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                       <XIcon class="w-3 h-3" />
                     </button>
@@ -198,11 +211,18 @@
       </div>
 
     </div>
+
+    <!-- Detail Modal -->
+    <IdeaDetailModal 
+      v-if="detailVisible" 
+      :item="detailItem" 
+      @close="detailVisible = false" 
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, inject ,onMounted} from 'vue';
+import { ref, reactive, inject, onMounted } from 'vue';
 import { 
   Heart as HeartIcon, 
   ChevronDown as ChevronDownIcon, 
@@ -210,7 +230,8 @@ import {
   Image as ImageIcon,
   X as XIcon
 } from 'lucide-vue-next';
-import request from '@/api/request';
+import request from '../api/request';
+import IdeaDetailModal from '../components/IdeaDetailModal.vue';
 
 const activeTab = ref('众创灵感');
 const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
@@ -218,16 +239,21 @@ const form = reactive({
   name: '',
   material: '原木',
   desc: '',
-  images: [] as string[]
+  images: [] as File[],
+  imagePreviews: [] as string[],
+  cover: null as File | null,
+  coverPreview: '' as string,
 });
 
 const coCreations = ref<any[]>([]);
 const myProgress = ref<any[]>([]);
 const loading = ref(false);
+const detailVisible = ref(false);
+const detailItem = ref<any>(null);
 
 const fetchCoCreations = async () => {
   try {
-    const data = await request.get('/api/cocreation/items/');
+    const data: any = await request.get('/api/cocreation/items/');
     coCreations.value = data.results || data;
   } catch (e) {
     console.error('Failed to fetch coCreations:', e);
@@ -237,7 +263,7 @@ const fetchCoCreations = async () => {
 const fetchMyProgress = async () => {
   if (!localStorage.getItem('access_token')) return;
   try {
-    const data = await request.get('/api/cocreation/my-progress/');
+    const data: any = await request.get('/api/cocreation/my-progress/');
     myProgress.value = data;
   } catch (e) {
     console.error('Failed to fetch myProgress:', e);
@@ -253,12 +279,39 @@ onMounted(async () => {
 });
 
 const addImage = () => {
-  const newImg = `https://picsum.photos/seed/${Math.random()}/400/400`;
-  form.images.push(newImg);
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.onchange = (e: Event) => {
+    const files = (e.target as HTMLInputElement).files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      form.images.push(file);
+      form.imagePreviews.push(URL.createObjectURL(file));
+    }
+  };
+  input.click();
 };
 
 const removeImage = (idx: number) => {
+  URL.revokeObjectURL(form.imagePreviews[idx]);
   form.images.splice(idx, 1);
+  form.imagePreviews.splice(idx, 1);
+};
+
+const selectCover = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    if (form.coverPreview) URL.revokeObjectURL(form.coverPreview);
+    form.cover = file;
+    form.coverPreview = URL.createObjectURL(file);
+  };
+  input.click();
 };
 
 const formatLikes = (likes: number) => {
@@ -268,33 +321,46 @@ const formatLikes = (likes: number) => {
   return likes.toString();
 };
 
-const requireAuth = (callback: () => void) => {
-  if (!localStorage.getItem('access_token')) {
-    toggleAuth?.(true);
-    return;
-  }
-  callback();
+const openDetail = (item: any) => {
+  detailItem.value = item;
+  detailVisible.value = true;
 };
 
 const handleSubmit = async () => {
   if (!localStorage.getItem('access_token')) {
     toggleAuth?.(true);
     return;
-  };
+  }
+  const fd = new FormData();
+  fd.append('title', form.name);
+  fd.append('material', form.material);
+  fd.append('desc', form.desc);
+  if (form.cover) {
+    fd.append('cover', form.cover);
+  }
+  for (const img of form.images) {
+    fd.append('images', img);
+  }
   try {
-    await request.post('/api/cocreation/create/', {
-      title: form.name,
-      material: form.material,
-      desc: form.desc,
+    loading.value = true;
+    await request.post('/api/cocreation/items/', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     alert('创意已提交，请耐心等待官方初审。');
     form.name = '';
     form.desc = '';
     form.images = [];
+    form.imagePreviews.forEach(u => URL.revokeObjectURL(u));
+    form.imagePreviews = [];
+    if (form.coverPreview) URL.revokeObjectURL(form.coverPreview);
+    form.cover = null;
+    form.coverPreview = '';
     await fetchMyProgress();
   } catch (e) {
     console.error('Failed to submit:', e);
     alert('提交失败，请重试');
+  } finally {
+    loading.value = false;
   }
 };
 </script>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="pt-24 pb-24 bg-surface min-h-screen">
     <div class="container mx-auto px-4">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -30,7 +30,7 @@
             <div class="mt-12 pt-12 border-t border-outline-variant/10">
               <div class="bg-surface rounded-2xl p-6 text-center">
                 <p class="text-[10px] text-secondary/40 font-bold uppercase mb-2">当前等级</p>
-                <div class="inline-block px-4 py-1 bg-tertiary text-white text-xs font-bold rounded">二级 · 营造生</div>
+                <div class="inline-block px-4 py-1 bg-tertiary text-white text-xs font-bold rounded">{{ levelLabel }}</div>
               </div>
               <div class="mt-4">
               <button 
@@ -57,15 +57,15 @@
               <div class="relative w-48 h-48 mb-8">
                 <svg viewBox="0 0 100 100" class="w-full h-full transform -rotate-90">
                   <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" class="text-secondary/5" />
-                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" stroke-dasharray="282.7" stroke-dashoffset="31.1" class="text-primary" />
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="8" :stroke-dasharray="282.7" :stroke-dashoffset="quizAccuracyOffset" class="text-primary" />
                 </svg>
                 <div class="absolute inset-0 flex flex-col items-center justify-center">
-                  <span class="text-4xl font-serif text-on-surface">89%</span>
+                  <span class="text-4xl font-serif text-on-surface">{{ Math.round(quizAccuracy) }}%</span>
                   <span class="text-[10px] text-secondary/40 font-bold uppercase">Accuracy</span>
                 </div>
               </div>
               <p class="text-xs text-secondary/60 leading-relaxed">
-                在 240 个古建知识点中<br />您已领先 92% 的营造师
+                在 {{ quizTotalCount }} 个古建知识点中<br />您已领先 92% 的营造师
               </p>
             </div>
 
@@ -77,7 +77,7 @@
                   <p class="text-[10px] text-secondary/40 font-bold">遍及 14 个省市的古建筑考察</p>
                 </div>
                 <div class="text-right">
-                  <span class="text-3xl font-serif text-on-surface">42</span>
+                  <span class="text-3xl font-serif text-on-surface">{{ footprintCount }}</span>
                   <span class="text-sm text-secondary/40">/150</span>
                 </div>
               </div>
@@ -177,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { 
   LayoutDashboard as DashboardIcon,
   LayoutGrid as LayoutGridIcon,
@@ -193,8 +193,12 @@ import {
   LogOut as LogOutIcon,
 } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
+import request from '../api/request';
+
 const activeSection = ref('dashboard');
 const router = useRouter();
+const userProfile = ref<any>(null);
+const loading = ref(true);
 const menuItems = [
   { id: 'dashboard', name: '进度看板', icon: DashboardIcon },
   { id: 'stamps', name: '印章册', icon: LayoutGridIcon },
@@ -202,69 +206,112 @@ const menuItems = [
   { id: 'messages', name: '消息管理', icon: MailIcon, hasBadge: true },
 ];
 
+// Notification type → icon / style mapping
+const notificationStyleMap: Record<string, { icon: any; typeBg: string; typeColor: string }> = {
+  reply: { icon: MessageIcon, typeBg: 'bg-primary/5', typeColor: 'text-primary' },
+  announcement: { icon: InfoIcon, typeBg: 'bg-tertiary/5', typeColor: 'text-tertiary' },
+  badge: { icon: StarIcon, typeBg: 'bg-on-surface/5', typeColor: 'text-on-surface' },
+  reward: { icon: GiftIcon, typeBg: 'bg-tertiary/5', typeColor: 'text-tertiary' },
+};
+
+const rewardIconMap: Record<string, any> = {
+  coupon: TicketIcon,
+  badge: AwardIcon,
+  other: GiftIcon,
+};
+
 const footprintStats = [
   { label: '宫廷建筑', percent: 85 },
   { label: '园林景观', percent: 42 },
   { label: '民居建筑', percent: 18 },
 ];
 
-const stamps = [
+const stamps = ref([
   { id: 1, name: '故宫 · 角楼', unlocked: true, image: 'https://picsum.photos/seed/s1/200/200' },
   { id: 2, name: '苏州 · 拙政园', unlocked: true, image: 'https://picsum.photos/seed/s2/200/200' },
   { id: 3, name: '五台山 · 佛光寺', unlocked: true, image: 'https://picsum.photos/seed/s3/200/200' },
   { id: 4, name: '待解锁', unlocked: false },
   { id: 5, name: '待解锁', unlocked: false },
-];
+]);
 
-const messages = [
-  { 
-    id: 1, 
-    title: '李工 回复了你的评论', 
-    content: '关于应县木塔梁栿结构的受力分析，你的见解非常独到，我整理了一些相关的实测资料...', 
-    time: '10分钟前', 
-    unread: true,
-    icon: MessageIcon,
-    typeBg: 'bg-primary/5',
-    typeColor: 'text-primary'
-  },
-  { 
-    id: 2, 
-    title: '官方：新章印发布预告', 
-    content: '《营造法式》专题集章活动即将开启，首枚“斗拱”套色印章将于下周一开放...', 
-    time: '2小时前', 
-    unread: false,
-    icon: InfoIcon,
-    typeBg: 'bg-tertiary/5',
-    typeColor: 'text-tertiary'
-  },
-  { 
-    id: 3, 
-    title: '获得新勋章：营造生', 
-    content: '恭喜你！在古建社区的探索里程碑达成，现已正式晋升为二级营造生。', 
-    time: '昨天', 
-    unread: false,
-    icon: StarIcon,
-    typeBg: 'bg-on-surface/5',
-    typeColor: 'text-on-surface'
-  },
-];
+const quizAccuracy = computed(() => {
+  if (!userProfile.value) return 0;
+  return userProfile.value.quiz_accuracy || 0;
+});
 
-const rewards = [
-  { id: 1, name: '故宫门票优惠券', desc: '有效期至 2026-12-31', icon: TicketIcon },
-  { id: 2, name: '“营造师”专属勋章', desc: '已佩戴至个人主页', icon: AwardIcon },
-];
+const quizAccuracyOffset = computed(() => {
+  const circumference = 2 * Math.PI * 45;
+  return circumference - (circumference * quizAccuracy.value / 100);
+});
+
+const levelLabel = computed(() => {
+  if (!userProfile.value) return '—';
+  return userProfile.value.level_label;
+});
+
+const footprintCount = computed(() => {
+  return userProfile.value?.footprint_count || 0;
+});
+
+const quizTotalCount = computed(() => {
+  return userProfile.value?.quiz_total_count || 0;
+});
+
+const messages = computed(() => {
+  if (!userProfile.value?.notifications) return [];
+  return userProfile.value.notifications.map((n: any) => {
+    const style = notificationStyleMap[n.type] || notificationStyleMap.announcement;
+    return {
+      id: n.id,
+      title: n.title,
+      content: n.content,
+      time: n.time,
+      unread: n.unread,
+      icon: style.icon,
+      typeBg: style.typeBg,
+      typeColor: style.typeColor,
+    };
+  });
+});
+
+const rewards = computed(() => {
+  if (!userProfile.value?.rewards) return [];
+  return userProfile.value.rewards.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    desc: r.desc,
+    icon: rewardIconMap[r.reward_type] || GiftIcon,
+  }));
+});
+
+const fetchUserProfile = async () => {
+  try {
+    loading.value = true;
+    const data = await request.get('/api/users/me/');
+    userProfile.value = data;
+  } catch (e) {
+    console.error('Failed to fetch user profile:', e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  if (!localStorage.getItem('access_token')) {
+    router.replace('/');
+    return;
+  }
+  fetchUserProfile();
+});
+
 const handleLogout = () => {
   if (confirm('确定要暂别“筑迹”，结束本次营造之旅吗？')) {
-    // 清除 JWT Tokens
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    // 如果你有其他用户信息缓存，也一并清理
-    // localStorage.clear(); 
-
-    // 返回首页
+    localStorage.removeItem('user_role');
     router.replace('/').then(() => {
-    window.location.reload();
-  });
+      window.location.reload();
+    });
   }
 };
 </script>
