@@ -182,7 +182,7 @@
                       :class="comment.is_liked ? 'text-primary' : 'text-secondary/40 hover:text-primary'"
                       class="transition-colors"
                     >
-                      赞同 ({{ comment.likes }})
+                      赞同 {{ comment.likes > 0 ? '(' + comment.likes + ')' : '' }}
                     </button>
                     <button class="hover:text-primary transition-colors" @click="replyTo(comment)">回复</button>
                     <button
@@ -210,7 +210,7 @@
                             class="transition-colors"
                             @click="handleCommentLike(reply)"
                           >
-                            赞同
+                            赞同 {{ reply.likes > 0 ? '(' + reply.likes + ')' : '' }}
                           </button>
                           <button class="hover:text-primary" @click="replyTo(reply, comment)">回复</button>
                           <button

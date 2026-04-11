@@ -156,12 +156,18 @@ class ForumPostViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    queryset = Comment.objects.select_related('author').filter(parent=None)
+    queryset = Comment.objects.select_related('author').all()
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         qs = super().get_queryset()
+
+        if self.action == 'list':
+            # 如果是获取某个帖子的评论列表，只看一级评论
+            # 如果是具体某个 ID 的操作（delete/patch），不走这里
+            qs = qs.filter(parent=None)
+        
         post_id = self.request.query_params.get('post')
         if post_id:
             qs = qs.filter(post__id=post_id)

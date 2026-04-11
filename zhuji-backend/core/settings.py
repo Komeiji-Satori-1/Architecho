@@ -97,7 +97,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'architecho',
         'USER': 'root',
-        'PASSWORD': '0629abcd',          # 按实际情况修改
+        'PASSWORD': '050902',          # 按实际情况修改
         'HOST': '127.0.0.1',
         'PORT': '3306',
         'OPTIONS': {
