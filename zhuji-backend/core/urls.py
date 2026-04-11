@@ -19,8 +19,11 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
+from api.views import global_search
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/search/', global_search, name='global-search'),
 
     # -------------------------------------------------------
     # API 路由
