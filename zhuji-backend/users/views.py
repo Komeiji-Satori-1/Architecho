@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
-from .serializers import UserListSerializer, UserDetailSerializer
+from .serializers import UserListSerializer, UserDetailSerializer, UserProfileSerializer
 
 
 class IsAdminOrModerator(permissions.BasePermission):
@@ -116,15 +116,8 @@ class MeView(APIView):
 
     def get(self, request):
         user = request.user
-        return Response({
-            'id': user.id,
-            'username': user.username,
-            'avatar': request.build_absolute_uri(user.avatar.url) if user.avatar else None,
-            'role': user.role,
-            'level_title': user.level_title,
-            'level_num': user.level_num,
-            'influence_power': user.influence_power,
-        })
+        serializer = UserProfileSerializer(user, context={'request': request})
+        return Response(serializer.data)
 class RegisterView(APIView):
     """注册接口：POST /api/users/register/"""
     permission_classes = [permissions.AllowAny]

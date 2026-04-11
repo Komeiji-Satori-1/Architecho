@@ -68,7 +68,13 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   if (to.name === 'AdminDashboard') {
     const role = localStorage.getItem('user_role');
-    if (role !== 'superadmin') {
+    if (role !== 'superadmin' && role !== 'moderator') {
+      next('/');
+      return;
+    }
+  }
+  if (to.name === 'UserProfile') {
+    if (!localStorage.getItem('access_token')) {
       next('/');
       return;
     }
