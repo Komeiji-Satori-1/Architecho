@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import service from '@/api/request';
 
 const emit = defineEmits(['close']);
 
@@ -91,13 +91,13 @@ const toggleMode = () => {
 };
 const handleLogin = async () => {
   try {
-    const response = await axios.post('http://127.0.0.1:8000/api/users/login/', {
+    const response = await service.post('/users/login/', {
       username: username.value,
       password: password.value,
     });
-    localStorage.setItem('access_token', response.data.access);
-    localStorage.setItem('refresh_token', response.data.refresh);
-    localStorage.setItem('user_role', response.data.user?.role || 'user');
+    localStorage.setItem('access_token', response.access);
+    localStorage.setItem('refresh_token', response.refresh);
+    localStorage.setItem('user_role', response.user?.role || 'user');
     emit('close');
     window.location.reload();
   } catch {
@@ -107,14 +107,14 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   errorMsg.value = '';
   try {
-    const res = await axios.post('http://127.0.0.1:8000/api/users/register/', {
+    const res = await service.post('/users/register/', {
       username: username.value,
       password: password.value,
       password_confirm: passwordConfirm.value,
     });
-    localStorage.setItem('access_token', res.data.access);
-    localStorage.setItem('refresh_token', res.data.refresh);
-    localStorage.setItem('user_role', res.data.user?.role || 'user');
+    localStorage.setItem('access_token', res.access);
+    localStorage.setItem('refresh_token', res.refresh);
+    localStorage.setItem('user_role', res.user?.role || 'user');
     emit('close');
     window.location.reload();
   } catch (err: any) {

@@ -136,7 +136,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import service from '@/api/request';
 import { ArrowLeft as ArrowLeftIcon, Image as ImageIcon, Plus as PlusIcon } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -161,8 +161,8 @@ onMounted(async () => {
     return;
   }
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/forum/categories/');
-    categories.value = res.data.results ?? res.data;
+    const res = await service.get('/forum/categories/');
+    categories.value = res.results ?? res;
   } catch {
     categories.value = [];
   }
@@ -231,7 +231,7 @@ const handlePublish = async () => {
       formData.append('cover', coverFile.value);
     }
 
-    const res = await axios.post('http://127.0.0.1:8000/api/forum/posts/', formData, {
+    const res = await service.post('/forum/posts/', formData, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
@@ -242,15 +242,15 @@ const handlePublish = async () => {
     if (extraImages.value.length) {
       const imgForm = new FormData();
       extraImages.value.forEach(img => imgForm.append('images', img.file));
-      await axios.post(
-        `http://127.0.0.1:8000/api/forum/posts/${res.data.id}/images/`,
+      await service.post(
+        `/forum/posts/${res.id}/images/`,
         imgForm,
         { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } },
       );
     }
 
     // 发布成功 → 跳转到帖子详情页
-    router.push(`/forum/${res.data.id}`);
+    router.push(`/forum/${res.id}`);
   } catch (err: any) {
     errorMsg.value = err.response?.data?.detail || '发布失败，请稍后重试';
   } finally {

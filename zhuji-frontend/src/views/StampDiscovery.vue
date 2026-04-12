@@ -333,7 +333,7 @@ const displaySteps = computed(() => {
 
 const fetchDiscovery = async () => {
   try {
-    const res = await service.get('/api/monuments/discovery/') as any;
+    const res = await service.get('/monuments/discovery/') as any;
     const list = res.results || res;
     topBuildings.value = list.slice(0, 3);
   } catch { /* ignore */ }
@@ -341,14 +341,14 @@ const fetchDiscovery = async () => {
 
 const fetchAllMonuments = async () => {
   try {
-    const res = await service.get('/api/monuments/discovery/', { params: { include_completed: 'true' } }) as any;
+    const res = await service.get('/monuments/discovery/', { params: { include_completed: 'true' } }) as any;
     allBuildings.value = res.results || res;
   } catch { /* ignore */ }
 };
 
 const fetchStampProgress = async () => {
   try {
-    const res = await service.get('/api/stamps/my-overall-progress/') as any;
+    const res = await service.get('/stamps/my-overall-progress/') as any;
     stampProgress.value = res;
   } catch {
     stampProgress.value = { collected: 0, total: 0, progress: 0, description: '开始探索古建筑，收集精美印章吧！' };

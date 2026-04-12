@@ -297,7 +297,7 @@ const fetchPostDetail = async () => {
   try {
     loading.value = true;
     console.log(`[DEBUG] Fetching post detail for post ${route.params.id}`);
-    const res = await service.get(`/api/forum/posts/${route.params.id}/`);
+    const res = await service.get(`/forum/posts/${route.params.id}/`);
     const data = res as any;
     console.log('[DEBUG] Post detail response:', data);
     
@@ -321,7 +321,7 @@ const fetchComments = async () => {
   try {
     // 假设评论接口为 /api/forum/comments/?post=id
     console.log(`[DEBUG] Fetching comments for post ${route.params.id}`);
-    const res = await service.get('/api/forum/comments/', { 
+    const res = await service.get('/forum/comments/', { 
       params: { post: route.params.id } 
     });
     comments.value = (res as any).results || res;
@@ -347,7 +347,7 @@ onMounted(async () => {
   const token = localStorage.getItem('access_token');
   if (token) {
     try {
-      const res = await service.get('/api/users/me/');
+      const res = await service.get('/users/me/');
       currentUser.value = res as any;
     } catch {}
   }
@@ -356,7 +356,7 @@ onMounted(async () => {
 // 3. 管理员操作 (Patch 请求)
 const updatePostStatus = async (payload: object) => {
   try {
-    const res = await service.patch(`/api/forum/posts/${post.value.id}/`, payload);
+    const res = await service.patch(`/forum/posts/${post.value.id}/`, payload);
     // 局部更新本地数据
     Object.assign(post.value, res);
   } catch (error) {
@@ -384,7 +384,7 @@ const handleLike = async () => requireAuth(async () => {
   try {
     console.log(`[DEBUG] Liking post ${post.value.id}, current likes: ${post.value.likes}, is_liked: ${post.value.is_liked}`);
     const action = post.value.is_liked ? 'unlike' : 'like';
-    const res = await service.post(`/api/forum/posts/${post.value.id}/interact/`, {
+    const res = await service.post(`/forum/posts/${post.value.id}/interact/`, {
       action: action
     });
     console.log(`[DEBUG] Like response:`, res);
@@ -400,10 +400,10 @@ const handleCommentLike = (comment: any) => requireAuth(async () => {
   try {
     console.log(`[DEBUG] Liking comment ${comment.id}, current likes: ${comment.likes}, is_liked: ${comment.is_liked}`);
     if (comment.is_liked) {
-      await service.post(`/api/forum/comments/${comment.id}/unlike/`);
+      await service.post(`/forum/comments/${comment.id}/unlike/`);
       console.log(`[DEBUG] Comment unlike success`);
     } else {
-      await service.post(`/api/forum/comments/${comment.id}/like/`);
+      await service.post(`/forum/comments/${comment.id}/like/`);
       console.log(`[DEBUG] Comment like success`);
     }
     // 重新获取评论列表以更新状态
@@ -415,7 +415,7 @@ const handleCommentLike = (comment: any) => requireAuth(async () => {
 
 const handleDelete = () => requireAuth(async () => {
   if (confirm('确定要删除这篇作品吗？')) {
-    await service.delete(`/api/forum/posts/${post.value.id}/`);
+    await service.delete(`/forum/posts/${post.value.id}/`);
     router.push('/forum');
   }
 });
@@ -429,7 +429,7 @@ const submitComment = async () => {
     }
     try {
       console.log(`[DEBUG] Submitting comment to post ${post.value.id}`);
-      const res = await service.post('/api/forum/comments/', {
+      const res = await service.post('/forum/comments/', {
         post: post.value.id,
         text: commentInput.value,
         parent: replyTarget.value?.id ?? null
@@ -442,7 +442,7 @@ const submitComment = async () => {
         const formData = new FormData();
         commentImages.value.forEach((img) => formData.append('images', img.file));
         console.log(`[DEBUG] Uploading ${commentImages.value.length} images for comment ${(res as any).id}`);
-        await service.post(`/api/forum/comments/${(res as any).id}/images/`, formData);
+        await service.post(`/forum/comments/${(res as any).id}/images/`, formData);
         commentImages.value.forEach((img) => URL.revokeObjectURL(img.preview));
         commentImages.value = [];
         console.log(`[DEBUG] Images uploaded successfully`);
@@ -520,7 +520,7 @@ const deleteComment = (comment: any) => {
     if (!confirm('确定删除此评论？其下所有回复也将同时删除。')) return;
     try {
       console.log(`[DEBUG] Deleting comment ${comment.id}`);
-      await service.delete(`/api/forum/comments/${comment.id}/`);
+      await service.delete(`/forum/comments/${comment.id}/`);
       comments.value = comments.value.filter((c: any) => c.id !== comment.id);
       console.log(`[DEBUG] Comment deleted successfully`);
     } catch (err) {
@@ -536,7 +536,7 @@ const deleteReply = (parentComment: any, reply: any) => {
     if (!confirm('确定删除此回复？')) return;
     try {
       console.log(`[DEBUG] Deleting reply ${reply.id}`);
-      await service.delete(`/api/forum/comments/${reply.id}/`);
+      await service.delete(`/forum/comments/${reply.id}/`);
       parentComment.replies = parentComment.replies.filter((r: any) => r.id !== reply.id);
       console.log(`[DEBUG] Reply deleted successfully`);
     } catch (err) {

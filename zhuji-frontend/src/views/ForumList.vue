@@ -130,7 +130,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import service from '@/api/request';
 import {
   TrendingUp as TrendingUpIcon,
   Search as SearchIcon,
@@ -153,8 +153,9 @@ const categories = ref<{ id: number; name: string; hot: boolean; post_count: num
 async function fetchCategories() {
   try {
     console.log('[DEBUG] Fetching categories...');
-    const res = await axios.get('http://127.0.0.1:8000/api/forum/categories/');
-    categories.value = res.data.results ?? res.data;
+    const res = await service.get('/forum/categories/');
+    console.log('[DEBUG] Raw categories response:', res.results ?? res);
+    categories.value = res.results ?? res;
     console.log('[DEBUG] Categories fetched:', categories.value.length);
     if (categories.value.length && !activeCategory.value) {
       activeCategory.value = categories.value[0].name;
@@ -187,8 +188,9 @@ async function fetchPosts() {
       params.ordering = '-created_at';
     }
     console.log('[DEBUG] Fetching posts with params:', params);
-    const res = await axios.get('http://127.0.0.1:8000/api/forum/posts/', { params });
-    posts.value = res.data.results ?? res.data;
+    const res = await service.get('/forum/posts/', { params });
+    posts.value = res.results ?? res;
+    console.log('[DEBUG] Raw posts response:', res);
     console.log('[DEBUG] Posts fetched:', posts.value.length);
     posts.value.forEach(p => console.log(`[DEBUG] Post ${p.id}: title=${p.title}, heat_score=${p.heat_score}, likes=${p.likes}, views=${p.views}`));
   } catch (err) {
@@ -214,8 +216,8 @@ const topUsers = ref<any[]>([]);
 
 async function fetchLeaderboard() {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/users/leaderboard/');
-    topUsers.value = res.data;
+    const res = await service.get('/users/leaderboard/');
+    topUsers.value = res.results ?? res;
   } catch {
     topUsers.value = [];
   }

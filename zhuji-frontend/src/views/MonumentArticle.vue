@@ -275,7 +275,7 @@ const monumentId = computed(() => Number(route.params.monumentId));
 
 const fetchArticle = async () => {
   try {
-    const res = await service.get(`/api/monuments/articles/by-monument/${monumentId.value}/`) as any;
+    const res = await service.get(`/monuments/articles/by-monument/${monumentId.value}/`) as any;
     article.value = res;
     pages.value = (res.pages || []).sort((a: any, b: any) => a.page_number - b.page_number);
   } catch {
@@ -285,7 +285,7 @@ const fetchArticle = async () => {
 
 const fetchStamp = async () => {
   try {
-    const res = await service.get(`/api/stamps/my-progress/monument/${monumentId.value}/`) as any;
+    const res = await service.get(`/stamps/my-progress/monument/${monumentId.value}/`) as any;
     stampData.value = res;
   } catch {
     stampData.value = { collected: 0, total: 0, progress: 0 };
@@ -321,7 +321,7 @@ const submitQuizAnswer = async () => {
   if (!quiz || !selectedOptionIds.value.length) return;
   quizSubmitting.value = true;
   try {
-    const res = await service.post('/api/quiz/submit-answer/', {
+    const res = await service.post('/quiz/submit-answer/', {
       question_id: quiz.id,
       selected_option_ids: selectedOptionIds.value,
     }) as any;

@@ -246,7 +246,7 @@ const doSearch = async (q: string) => {
   if (!q) return;
   loading.value = true;
   try {
-    const res = await service.get('/api/search/', { params: { q } }) as any;
+    const res = await service.get('/search/', { params: { q } }) as any;
     posts.value = res.posts || [];
     monuments.value = res.monuments || [];
     cocreations.value = res.cocreations || [];

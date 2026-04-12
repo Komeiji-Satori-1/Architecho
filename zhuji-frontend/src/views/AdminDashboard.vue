@@ -804,7 +804,7 @@ const feedbackMap = ref<Record<number, string>>({});
 const fetchSubmissions = async () => {
   loadingSubmissions.value = true;
   try {
-    const res = await service.get('/api/monuments/submissions/', {
+    const res = await service.get('/monuments/submissions/', {
       params: { status: auditStatusFilter.value },
     }) as any;
     submissionList.value = (res.results || res).map((item: any) => ({
@@ -824,7 +824,7 @@ const statusBadgeClass = (rawStatus: string) => {
 
 const auditOne = async (id: number, decision: string) => {
   try {
-    await service.post(`/api/monuments/submissions/${id}/audit/`, {
+    await service.post(`/monuments/submissions/${id}/audit/`, {
       status: decision,
       feedback: feedbackMap.value[id] || '',
     });
@@ -836,7 +836,7 @@ const auditOne = async (id: number, decision: string) => {
 
 const quickApprove = async (id: number) => {
   try {
-    await service.post(`/api/monuments/submissions/${id}/quick-approve/`);
+    await service.post(`/monuments/submissions/${id}/quick-approve/`);
     fetchSubmissions();
   } catch {
     alert('操作失败');
@@ -859,7 +859,7 @@ const filteredUsers = computed(() =>
 );
 
 const fetchUsers = async () => {
-  const res = await service.get('/api/users/users/') as any;
+  const res = await service.get('/users/users/') as any;
   userList.value = (res.results || res).map((u: any) => ({
     ...u,
     _rawRole: roleDisplayToRaw[u.role] ?? 'user',
@@ -868,7 +868,7 @@ const fetchUsers = async () => {
 
 const onBanToggle = async (user: any) => {
   try {
-    await service.post(`/api/users/users/${user.id}/${user.active ? 'ban' : 'unban'}/`);
+    await service.post(`/users/users/${user.id}/${user.active ? 'ban' : 'unban'}/`);
     fetchUsers();
   } catch {
     alert('操作失败');
@@ -877,7 +877,7 @@ const onBanToggle = async (user: any) => {
 
 const onSetRole = async (userId: number, role: string) => {
   try {
-    await service.post(`/api/users/users/${userId}/set-role/`, { role });
+    await service.post(`/users/users/${userId}/set-role/`, { role });
     fetchUsers();
   } catch {
     alert('操作失败');
@@ -893,12 +893,12 @@ const filteredQuiz = computed(() => {
 });
 
 const fetchQuizList = async () => {
-  const res = await service.get('/api/quiz/questions/') as any;
+  const res = await service.get('/quiz/questions/') as any;
   quizList.value = res.results || res;
 };
 
 const fetchMonuments = async () => {
-  const res = await service.get('/api/monuments/monuments/') as any;
+  const res = await service.get('/monuments/monuments/') as any;
   monumentList.value = (res.results || res).filter((m: any) => m.is_published);
   console.log('Monuments:', monumentList.value);
 };
@@ -986,17 +986,17 @@ const saveQuiz = async () => {
     if (quizForm.value.article_page) fd.append('article_page', String(quizForm.value.article_page));
     let questionId = editingQuizId.value;
     if (questionId) {
-      await service.patch(`/api/quiz/questions/${questionId}/`, fd);
+      await service.patch(`/quiz/questions/${questionId}/`, fd);
     } else {
-      const res = await service.post('/api/quiz/questions/', fd) as any;
+      const res = await service.post('/quiz/questions/', fd) as any;
       questionId = res.id;
     }
 
     // 第二步：删除旧选项，重建新选项
-    const existingRes = await service.get(`/api/quiz/options/?question=${questionId}`) as any;
+    const existingRes = await service.get(`/quiz/options/?question=${questionId}`) as any;
     const existingOptions = existingRes.results || existingRes;
     for (const opt of existingOptions) {
-      await service.delete(`/api/quiz/options/${opt.id}/`);
+      await service.delete(`/quiz/options/${opt.id}/`);
     }
     for (const [i, opt] of quizForm.value.options.entries()) {
       if (!opt.label.trim()) continue;
@@ -1005,7 +1005,7 @@ const saveQuiz = async () => {
       ofd.append('label', opt.label);
       ofd.append('is_correct', String(opt.is_correct));
       ofd.append('order', String(i));
-      await service.post('/api/quiz/options/', ofd);
+      await service.post('/quiz/options/', ofd);
     }
 
     showQuizModal.value = false;
@@ -1028,7 +1028,7 @@ const removeQuizOption = (index: number) => {
 const deleteQuiz = async (id: number) => {
   if (!confirm('确定删除此题目？')) return;
   try {
-    await service.delete(`/api/quiz/questions/${id}/`);
+    await service.delete(`/quiz/questions/${id}/`);
     fetchQuizList();
   } catch {
     alert('删除失败');
@@ -1056,7 +1056,7 @@ const monumentSaving = ref(false);
 
 const fetchMgmtMonuments = async () => {
   try {
-    const res = await service.get('/api/monuments/monuments/') as any;
+    const res = await service.get('/monuments/monuments/') as any;
     mgmtMonumentList.value = res.results || res;
   } catch { mgmtMonumentList.value = []; }
 };
@@ -1102,9 +1102,9 @@ const saveMonument = async () => {
     // ✅ 第二步：发送请求
     let res;
     if (editingMonumentId.value) {
-      res = await service.patch(`/api/monuments/monuments/${editingMonumentId.value}/`, fd);
+      res = await service.patch(`/monuments/monuments/${editingMonumentId.value}/`, fd);
     } else {
-      res = await service.post('/api/monuments/monuments/', fd);
+      res = await service.post('/monuments/monuments/', fd);
     }
 
     // ✅ 第三步：请求成功后的反馈
@@ -1127,7 +1127,7 @@ const saveMonument = async () => {
 
 const toggleMonumentPublish = async (m: any) => {
   try {
-    await service.patch(`/api/monuments/monuments/${m.id}/`, { is_published: !m.is_published });
+    await service.patch(`/monuments/monuments/${m.id}/`, { is_published: !m.is_published });
     fetchMgmtMonuments();
     fetchMonuments();
   } catch { alert('操作失败'); }
@@ -1135,7 +1135,7 @@ const toggleMonumentPublish = async (m: any) => {
 
 const deleteMonument = async (id: number) => {
   if (!confirm('确定删除此古建？关联的印章和文章也将受到影响。')) return;
-  try { await service.delete(`/api/monuments/monuments/${id}/`); fetchMgmtMonuments(); } catch { alert('删除失败'); }
+  try { await service.delete(`/monuments/monuments/${id}/`); fetchMgmtMonuments(); } catch { alert('删除失败'); }
 };
 
 // ===== Stamp Management =====
@@ -1154,7 +1154,7 @@ const layerSaving = ref(false);
 
 const fetchMgmtStamps = async () => {
   try {
-    const res = await service.get('/api/stamps/stamps/') as any;
+    const res = await service.get('/stamps/stamps/') as any;
     mgmtStampList.value = res.results || res;
   } catch { mgmtStampList.value = []; }
 };
@@ -1177,9 +1177,9 @@ const saveStamp = async () => {
     const data: any = { name: stampForm.value.name, description: stampForm.value.description };
     if (stampForm.value.monument) data.monument = stampForm.value.monument;
     if (editingStampId.value) {
-      await service.patch(`/api/stamps/stamps/${editingStampId.value}/`, data);
+      await service.patch(`/stamps/stamps/${editingStampId.value}/`, data);
     } else {
-      await service.post('/api/stamps/stamps/', data);
+      await service.post('/stamps/stamps/', data);
     }
     showStampModal.value = false;
     fetchMgmtStamps();
@@ -1189,7 +1189,7 @@ const saveStamp = async () => {
 
 const deleteStamp = async (id: number) => {
   if (!confirm('确定删除此印章？')) return;
-  try { await service.delete(`/api/stamps/stamps/${id}/`); fetchMgmtStamps(); } catch { alert('删除失败'); }
+  try { await service.delete(`/stamps/stamps/${id}/`); fetchMgmtStamps(); } catch { alert('删除失败'); }
 };
 
 const openLayerModal = (stampId: number) => {
@@ -1216,7 +1216,7 @@ const saveLayer = async () => {
     fd.append('color', layerForm.value.color);
     fd.append('blend_mode', layerForm.value.blend_mode);
     if (layerSvgFile.value) fd.append('svg_file', layerSvgFile.value);
-    await service.post('/api/stamps/layers/', fd);
+    await service.post('/stamps/layers/', fd);
     showLayerModal.value = false;
     fetchMgmtStamps();
   } catch { alert('保存失败'); }
@@ -1225,7 +1225,7 @@ const saveLayer = async () => {
 
 const deleteStampLayer = async (layerId: number, stampId: number) => {
   if (!confirm('确定删除此图层？')) return;
-  try { await service.delete(`/api/stamps/layers/${layerId}/`); fetchMgmtStamps(); } catch { alert('删除失败'); }
+  try { await service.delete(`/stamps/layers/${layerId}/`); fetchMgmtStamps(); } catch { alert('删除失败'); }
 };
 
 // ===== Articles Management =====
@@ -1260,7 +1260,7 @@ const articlePageList = computed(() => {
 
 const fetchMgmtArticles = async () => {
   try {
-    const res = await service.get('/api/monuments/articles/') as any;
+    const res = await service.get('/monuments/articles/') as any;
     mgmtArticleList.value = res.results || res;
   } catch { mgmtArticleList.value = []; }
 };
@@ -1288,9 +1288,9 @@ const saveArticle = async () => {
     const data: any = { title: articleForm.value.title };
     if (articleForm.value.monument) data.monument = articleForm.value.monument;
     if (editingArticleId.value) {
-      await service.patch(`/api/monuments/articles/${editingArticleId.value}/`, data);
+      await service.patch(`/monuments/articles/${editingArticleId.value}/`, data);
     } else {
-      await service.post('/api/monuments/articles/', data);
+      await service.post('/monuments/articles/', data);
     }
     showArticleModal.value = false;
     fetchMgmtArticles();
@@ -1300,12 +1300,12 @@ const saveArticle = async () => {
 
 const deleteArticle = async (id: number) => {
   if (!confirm('确定删除此文章？关联页面和题目也将受到影响。')) return;
-  try { await service.delete(`/api/monuments/articles/${id}/`); fetchMgmtArticles(); } catch { alert('删除失败'); }
+  try { await service.delete(`/monuments/articles/${id}/`); fetchMgmtArticles(); } catch { alert('删除失败'); }
 };
 
 const checkArticleConsistency = async (id: number) => {
   try {
-    const res = await service.get(`/api/monuments/articles/${id}/consistency-check/`) as any;
+    const res = await service.get(`/monuments/articles/${id}/consistency-check/`) as any;
     const issues = res.issues || [];
     if (!issues.length) {
       alert('✅ 检测通过：文章结构完整，所有页面均已关联题目。');
@@ -1332,9 +1332,9 @@ const savePage = async () => {
   try {
     const data = { article: pageArticleId.value, page_number: pageForm.value.page_number, content: pageForm.value.content };
     if (editingPageId.value) {
-      await service.patch(`/api/monuments/article-pages/${editingPageId.value}/`, data);
+      await service.patch(`/monuments/article-pages/${editingPageId.value}/`, data);
     } else {
-      await service.post('/api/monuments/article-pages/', data);
+      await service.post('/monuments/article-pages/', data);
     }
     showPageModal.value = false;
     fetchMgmtArticles();
@@ -1344,6 +1344,6 @@ const savePage = async () => {
 
 const deletePage = async (pageId: number, articleId: number) => {
   if (!confirm('确定删除此页面？')) return;
-  try { await service.delete(`/api/monuments/article-pages/${pageId}/`); fetchMgmtArticles(); } catch { alert('删除失败'); }
+  try { await service.delete(`/monuments/article-pages/${pageId}/`); fetchMgmtArticles(); } catch { alert('删除失败'); }
 };
 </script>
