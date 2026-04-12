@@ -2,6 +2,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db.models import Q
+from django.http import HttpResponse
 
 from forum.models import ForumPost
 from forum.serializers import ForumPostListSerializer
@@ -36,3 +37,8 @@ def global_search(request):
         'monuments': MonumentSerializer(monuments, many=True, context={'request': request}).data,
         'cocreations': CoCreationListSerializer(cocreations, many=True, context={'request': request}).data,
     })
+def admin_honeypot(request):
+    # 记录 IP（这里可以结合你的日志系统）
+    ip = request.META.get('REMOTE_ADDR')
+    # 返回一个伪装成系统崩溃的 401 或 404
+    return HttpResponse("Internal Server Error: Debug mode disabled.", status=401)
