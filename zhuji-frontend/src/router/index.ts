@@ -8,6 +8,7 @@ import UserProfile from '@/views/UserProfile.vue';
 import AdminDashboard from '@/views/AdminDashboard.vue';
 import PublishPost from '@/views/PublishPost.vue';
 import MonumentArticle from '@/views/MonumentArticle.vue';
+import SearchResults from '@/views/SearchResults.vue';
 
 const routes = [
   {
@@ -55,6 +56,11 @@ const routes = [
     name: 'PublishPost',
     component: PublishPost,
   },
+  {
+    path: '/search',
+    name: 'SearchResults',
+    component: SearchResults,
+  },
 ];
 
 const router = createRouter({
@@ -68,7 +74,13 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   if (to.name === 'AdminDashboard') {
     const role = localStorage.getItem('user_role');
-    if (role !== 'superadmin') {
+    if (role !== 'superadmin' && role !== 'moderator') {
+      next('/');
+      return;
+    }
+  }
+  if (to.name === 'UserProfile') {
+    if (!localStorage.getItem('access_token')) {
       next('/');
       return;
     }

@@ -18,11 +18,13 @@
       <div class="flex items-center space-x-6">
         <div class="relative hidden sm:block">
           <input 
+            v-model="searchQuery"
             type="text" 
             placeholder="搜索古建、帖子、筑品..." 
             class="bg-surface-container-low border border-outline-variant/20 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-primary/40 w-64 transition-all"
+            @keyup.enter="doSearch"
           />
-          <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary/40" />
+          <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary/40 cursor-pointer" @click="doSearch" />
         </div>
         
         <button
@@ -39,12 +41,20 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue';
+import { ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search as SearchIcon, User as UserIcon } from 'lucide-vue-next';
 
 const router = useRouter();
 const toggleAuth = inject<(val: boolean) => void>('toggleAuth');
+const searchQuery = ref('');
+
+const doSearch = () => {
+  const q = searchQuery.value.trim();
+  if (!q) return;
+  router.push({ path: '/search', query: { q } });
+  searchQuery.value = '';
+};
 
 const goHome = () => {
   router.push('/');

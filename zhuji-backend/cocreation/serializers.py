@@ -1,5 +1,57 @@
 from rest_framework import serializers
-from .models import CoCreationItem
+from .models import CoCreationItem, CoCreationImage
+
+
+class CoCreationImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CoCreationImage
+        fields = ['id', 'image', 'sort_order']
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        return None
+
+
+class CoCreationAuditSerializer(serializers.Serializer):
+    """共创筑品审核操作序列化器。"""
+    status = serializers.ChoiceField(choices=[
+        'reviewing', 'sampling', 'producing', 'adopted', 'rejected',
+    ])
+    progress_percent = serializers.IntegerField(min_value=0, max_value=100, required=False)
+
+
+class CoCreationDetailSerializer(serializers.ModelSerializer):
+    """共创筑品详情序列化器（审核返回 / 弹窗详情）。"""
+    author = serializers.CharField(source='author.username', read_only=True)
+    avatar = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    images = CoCreationImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CoCreationItem
+        fields = [
+            'id', 'title', 'author', 'avatar', 'cover',
+            'material', 'desc', 'featured', 'likes',
+            'status', 'status_display', 'progress_percent',
+            'images', 'created_at', 'updated_at',
+        ]
+
+    def get_avatar(self, obj):
+        request = self.context.get('request')
+        if obj.author.avatar and request:
+            return request.build_absolute_uri(obj.author.avatar.url)
+        return None
+
+    def get_cover(self, obj):
+        request = self.context.get('request')
+        if obj.cover and request:
+            return request.build_absolute_uri(obj.cover.url)
+        return None
 
 
 class CoCreationNewsSerializer(serializers.ModelSerializer):
@@ -50,3 +102,14 @@ class CoCreationListSerializer(serializers.ModelSerializer):
         if obj.cover and request:
             return request.build_absolute_uri(obj.cover.url)
         return None
+
+
+class CoCreationWriteSerializer(serializers.ModelSerializer):
+    """共创筑品创建/更新序列化器。"""
+
+    class Meta:
+        model = CoCreationItem
+        fields = ['title', 'material', 'desc', 'cover']
+        extra_kwargs = {
+            'cover': {'required': False},
+        }

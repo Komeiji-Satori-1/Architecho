@@ -197,7 +197,7 @@
 <script setup lang="ts">
 import { ref, onMounted ,onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import service from '@/api/request';
 import { 
   ArrowRight as ArrowRightIcon, 
   MessageSquare as MessageSquareIcon,
@@ -207,7 +207,6 @@ import {
   Compass as CompassIcon
 } from 'lucide-vue-next';
 import StampLayer from '@/components/StampLayer.vue';
-import e from 'express';
 
 const router = useRouter();
 const heroList = ref([]); 
@@ -267,11 +266,11 @@ async function fetchStampProgress() {
   console.log('Fetching stamp progress with token:', token);
   if (!token) return;
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/stamps/my-progress/', {
+    const res = await service.get('/stamps/my-progress/', {
       headers: { Authorization: `Bearer ${token}` },
     });
-    stampProgress.value = res.data;
-    console.log('Stamp progress fetched:', res.data);
+    stampProgress.value = res;
+    console.log('Stamp progress fetched:', res);
   } catch (error: any) {
     // 2. 如果登录，但没有数据 (后端返回 404)
     if (error.response && error.response.status === 404) {
@@ -300,8 +299,8 @@ async function fetchStampProgress() {
 
 async function fetchHero() {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/monuments/featured/');
-    heroList.value = res.data;
+    const res = await service.get('/monuments/featured/');
+    heroList.value = res.results ?? res;
   } catch {
     console.log('获取推荐失败，使用默认值');
   }
@@ -315,8 +314,8 @@ const startTimer = () => {
 };
 async function fetchHotTopics() {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/forum/hot-topics/');
-    hotTopics.value = res.data;
+    const res = await service.get('/forum/hot-topics/');
+    hotTopics.value = res.results ?? res;
   } catch {
     hotTopics.value = [];
   } finally {
@@ -326,8 +325,8 @@ async function fetchHotTopics() {
 
 async function fetchCoNews() {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/cocreation/recent-news/');
-    coNews.value = res.data;
+    const res = await service.get('/cocreation/recent-news/');
+    coNews.value = res.results ?? res;
   } catch {
     coNews.value = [];
   } finally {

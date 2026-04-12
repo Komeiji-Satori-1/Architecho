@@ -130,7 +130,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import service from '@/api/request';
 import {
   TrendingUp as TrendingUpIcon,
   Search as SearchIcon,
@@ -145,19 +145,23 @@ const activeTab = ref('全部动态');
 const searchQuery = ref('');
 const postsLoading = ref(true);
 
-const tabs = ['全部动态', '精华帖', '最新发布'];
+const tabs = ['全部动态', '热门', '精华帖', '最新发布'];
 
 // ─── 分类（来自数据库） ─────────────────────────────────────────
 const categories = ref<{ id: number; name: string; hot: boolean; post_count: number }[]>([]);
 
 async function fetchCategories() {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/api/forum/categories/');
-    categories.value = res.data.results ?? res.data;
+    console.log('[DEBUG] Fetching categories...');
+    const res = await service.get('/forum/categories/');
+    console.log('[DEBUG] Raw categories response:', res.results ?? res);
+    categories.value = res.results ?? res;
+    console.log('[DEBUG] Categories fetched:', categories.value.length);
     if (categories.value.length && !activeCategory.value) {
       activeCategory.value = categories.value[0].name;
     }
-  } catch {
+  } catch (err) {
+    console.error('[ERROR] Failed to fetch categories:', err);
     categories.value = [];
   }
 }
@@ -171,11 +175,26 @@ async function fetchPosts() {
     const params: Record<string, string | number> = {};
     const cat = categories.value.find(c => c.name === activeCategory.value);
     if (cat) params.category = cat.id;
-    if (activeTab.value === '精华帖') params.is_essence = 'true';
-    if (activeTab.value === '最新发布') params.ordering = '-created_at';
-    const res = await axios.get('http://127.0.0.1:8000/api/forum/posts/', { params });
-    posts.value = res.data.results ?? res.data;
-  } catch {
+    if (activeTab.value === '精华帖') {
+      console.log('[DEBUG] Filtering by essence');
+      params.is_essence = 'true';
+    }
+    if (activeTab.value === '热门') {
+      console.log('[DEBUG] Sorting by heat score');
+      params.ordering = '-heat_score';
+    }
+    if (activeTab.value === '最新发布') {
+      console.log('[DEBUG] Sorting by created_at');
+      params.ordering = '-created_at';
+    }
+    console.log('[DEBUG] Fetching posts with params:', params);
+    const res = await service.get('/forum/posts/', { params });
+    posts.value = res.results ?? res;
+    console.log('[DEBUG] Raw posts response:', res);
+    console.log('[DEBUG] Posts fetched:', posts.value.length);
+    posts.value.forEach(p => console.log(`[DEBUG] Post ${p.id}: title=${p.title}, heat_score=${p.heat_score}, likes=${p.likes}, views=${p.views}`));
+  } catch (err) {
+    console.error('[ERROR] Failed to fetch posts:', err);
     posts.value = [];
   } finally {
     postsLoading.value = false;
@@ -185,18 +204,24 @@ async function fetchPosts() {
 onMounted(async () => {
   await fetchCategories();
   await fetchPosts();
+  fetchLeaderboard();
 });
 
 watch([activeCategory, activeTab], () => {
   fetchPosts();
 });
 
-// ─── 活跃榜（待 users API 扩展后对接，暂用占位数据） ───────────────────
-const topUsers = [
-  { name: '云栖墨客', power: '9.8k', avatar: 'https://picsum.photos/seed/u1/100/100', badges: 3 },
-  { name: '木构灵魂', power: '8.2k', avatar: 'https://picsum.photos/seed/u2/100/100', badges: 2 },
-  { name: '丹青绘影', power: '7.5k', avatar: 'https://picsum.photos/seed/u3/100/100', badges: 2 },
-];
+// ─── 活跃榜（来自后端 API） ───────────────────
+const topUsers = ref<any[]>([]);
+
+async function fetchLeaderboard() {
+  try {
+    const res = await service.get('/users/leaderboard/');
+    topUsers.value = res.results ?? res;
+  } catch {
+    topUsers.value = [];
+  }
+}
 
 // ─── 搜索（客户端过滤） ──────────────────────────────────────────
 const filteredPosts = computed(() => {

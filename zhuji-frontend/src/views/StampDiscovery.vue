@@ -168,11 +168,11 @@
                 v-for="(step, idx) in displaySteps" 
                 :key="idx"
                 class="flex items-center space-x-4"
-                :class="(stampProgress.collected || 0) > idx ? 'opacity-100' : 'opacity-30'"
+                :class="step.is_complete ? 'opacity-100' : 'opacity-30'"
               >
                 <div class="w-3 h-3 rounded-full" :style="{ backgroundColor: step.color }"></div>
-                <span class="text-xs font-medium" :class="(stampProgress.collected || 0) === idx + 1 ? 'text-primary' : 'text-secondary'">
-                  {{ step.name }} {{ (stampProgress.collected || 0) > idx ? '(已完成)' : '(未解锁)' }}
+                <span class="text-xs font-medium" :class="step.is_complete ? 'text-primary' : 'text-secondary'">
+                  {{ step.name }} {{ step.is_complete ? '(已完成)' : '(未解锁)' }}
                 </span>
               </div>
             </div>
@@ -317,19 +317,23 @@ const statusLabel = (status: string) => {
 };
 
 const displaySteps = computed(() => {
-  if (stampLayers.value.length) {
-    return stampLayers.value.map(l => ({ name: l.layer_name, color: l.color }));
+  const stamps = stampProgress.value?.stamps;
+  if (stamps && stamps.length) {
+    const colors = ['#970010', '#624300', '#1a5c3a', '#2a4d8f', '#7b4b94'];
+    return stamps.map((s: any, i: number) => ({
+      name: s.monument_name || s.name,
+      color: colors[i % colors.length],
+      is_complete: s.is_complete,
+    }));
   }
   return [
-    { name: '第一层：素胎底框', color: '#e2e2e2' },
-    { name: '第二层：朱砂描红', color: '#970010' },
-    { name: '第三层：琉璃缀金', color: '#624300' },
+    { name: '探索古建筑', color: '#e2e2e2', is_complete: false },
   ];
 });
 
 const fetchDiscovery = async () => {
   try {
-    const res = await service.get('/api/monuments/discovery/') as any;
+    const res = await service.get('/monuments/discovery/') as any;
     const list = res.results || res;
     topBuildings.value = list.slice(0, 3);
   } catch { /* ignore */ }
@@ -337,18 +341,15 @@ const fetchDiscovery = async () => {
 
 const fetchAllMonuments = async () => {
   try {
-    const res = await service.get('/api/monuments/discovery/', { params: { include_completed: 'true' } }) as any;
+    const res = await service.get('/monuments/discovery/', { params: { include_completed: 'true' } }) as any;
     allBuildings.value = res.results || res;
   } catch { /* ignore */ }
 };
 
 const fetchStampProgress = async () => {
   try {
-    const res = await service.get('/api/stamps/my-progress/') as any;
+    const res = await service.get('/stamps/my-overall-progress/') as any;
     stampProgress.value = res;
-    if (res.color_layers) {
-      stampLayers.value = res.color_layers;
-    }
   } catch {
     stampProgress.value = { collected: 0, total: 0, progress: 0, description: '开始探索古建筑，收集精美印章吧！' };
   }

@@ -19,9 +19,12 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
+from api.views import global_search, admin_honeypot
 
+urlpatterns = [
+    path('admin/', admin_honeypot),
+    path('api/search/', global_search, name='global-search'),
+    path('error-log-stacktrace/', admin.site.urls),
     # -------------------------------------------------------
     # API 路由
     # 模块化 Apps — 每个 App 管理自己的 urls.py
