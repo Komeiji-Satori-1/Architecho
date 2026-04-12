@@ -253,7 +253,7 @@ const detailItem = ref<any>(null);
 
 const fetchCoCreations = async () => {
   try {
-    const data: any = await request.get('/api/cocreation/items/');
+    const data: any = await request.get('/cocreation/items/');
     coCreations.value = data.results || data;
   } catch (e) {
     console.error('Failed to fetch coCreations:', e);
@@ -263,7 +263,7 @@ const fetchCoCreations = async () => {
 const fetchMyProgress = async () => {
   if (!localStorage.getItem('access_token')) return;
   try {
-    const data: any = await request.get('/api/cocreation/my-progress/');
+    const data: any = await request.get('/cocreation/my-progress/');
     myProgress.value = data;
   } catch (e) {
     console.error('Failed to fetch myProgress:', e);
@@ -343,7 +343,7 @@ const handleSubmit = async () => {
   }
   try {
     loading.value = true;
-    await request.post('/api/cocreation/items/', fd, {
+    await request.post('/cocreation/items/', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     alert('创意已提交，请耐心等待官方初审。');

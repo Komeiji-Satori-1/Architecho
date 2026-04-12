@@ -13,10 +13,6 @@
       <div class="absolute top-4 left-4 bg-primary/90 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest">
         {{ post.category_name }}
       </div>
-      <!-- 热度徽章 -->
-      <div v-if="post.heat_score" class="absolute top-4 right-4 bg-red-500/90 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-widest">
-        🔥 {{ post.heat_score }}
-      </div>
     </div>
     
     <div class="p-6">
