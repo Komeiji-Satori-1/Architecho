@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-h5-6&+eimikyt5@ou^f4h&984t*qt@(zb9@g@0dvm7p-tvcb9m
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '123.56.15.183']
 
 
 # Application definition
@@ -187,6 +187,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'http://123.56.15.183'
 ]
 CORS_ALLOW_CREDENTIALS = True
 from datetime import timedelta
@@ -196,16 +197,28 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # refresh token 30天
 }
 
-# -------------------------------------------------------
-# 缓存配置（忘记密码验证码等）
-# 开发环境使用本地内存缓存，生产环境建议切换为 Redis
-# -------------------------------------------------------
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'architecho-cache',
+if DEBUG:
+    # 本地开发环境：如果你本地没装 Redis，或者想快速调试，使用内存缓存
+    # 如果本地也装了 Redis，可以改成和下面一样的 RedisCache 配置
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'architecho-cache-dev',
+        }
     }
-}
+else:
+    # 生产环境：使用 Redis（需要已安装 redis 和 django-redis）
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": "redis://127.0.0.1:6379/1",  # 使用 1 号数据库
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                # 如果 Redis 设置了密码，取消下面行的注释
+                # "PASSWORD": "你的Redis密码",
+            }
+        }
+    }
 
 # -------------------------------------------------------
 # 邮件配置（忘记密码、通知等）
