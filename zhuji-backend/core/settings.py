@@ -11,6 +11,12 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,10 +26,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-h5-6&+eimikyt5@ou^f4h&984t*qt@(zb9@g@0dvm7p-tvcb9m'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-key-for-dev')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '123.56.15.183']
 
@@ -95,11 +101,11 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'architecho',
-        'USER': 'root',
-        'PASSWORD': '050902',          # 按实际情况修改
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),          # 按实际情况修改
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
@@ -211,11 +217,11 @@ else:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": "redis://127.0.0.1:6379/1",  # 使用 1 号数据库
+            "LOCATION": os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1'),  # 使用 1 号数据库
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 # 如果 Redis 设置了密码，取消下面行的注释
-                # "PASSWORD": "你的Redis密码",
+                # "PASSWORD": os.environ.get('REDIS_PASSWORD'),
             }
         }
     }
@@ -227,10 +233,10 @@ else:
 # -------------------------------------------------------
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # 生产环境 SMTP 配置示例（取消注释并填写）：
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.qq.com'
-# EMAIL_PORT = 465
-# EMAIL_USE_SSL = True
-# EMAIL_HOST_USER = 'your_email@qq.com'
-# EMAIL_HOST_PASSWORD = 'your_smtp_authorization_code'
+ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+ EMAIL_HOST = 'smtp.163.com'
+ EMAIL_PORT = 465
+ EMAIL_USE_SSL = True
+ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # 你的邮箱地址
+ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # 你的授权码
 DEFAULT_FROM_EMAIL = '筑迹 <noreply@architecho.com>'
