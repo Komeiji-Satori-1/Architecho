@@ -231,12 +231,12 @@ else:
 # 开发环境使用控制台后端（邮件打印到终端），
 # 生产环境请切换为 SMTP 后端并填入真实配置
 # -------------------------------------------------------
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # 生产环境 SMTP 配置示例（取消注释并填写）：
- EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
- EMAIL_HOST = 'smtp.163.com'
- EMAIL_PORT = 465
- EMAIL_USE_SSL = True
- EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # 你的邮箱地址
- EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # 你的授权码
-DEFAULT_FROM_EMAIL = '筑迹 <noreply@architecho.com>'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.163.com'
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')  # 你的邮箱地址
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')  # 你的授权码
+DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER')
