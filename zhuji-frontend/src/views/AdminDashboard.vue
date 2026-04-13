@@ -39,7 +39,7 @@
               <p class="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">Master Admin Panel</p>
               <h1 class="font-serif text-4xl text-on-surface">
                 {{ {
-                  dashboard: '工作台预览', audit: '内容审核中心', users: '用户与版主管理', ai: 'AI 监管配置', quiz: '题库管理',
+                  dashboard: '工作台预览', audit: '内容审核中心', users: '用户与版主管理', quiz: '题库管理',
                   'monuments-mgmt': '古建列表', 'stamp-mgmt': '印章管理', 'articles-mgmt': '古建资料'
                 }[activeTab] || '管理面板' }}
               </h1>
@@ -57,59 +57,42 @@
           <!-- Dashboard View -->
           <div v-if="activeTab === 'dashboard'" class="space-y-8">
             <!-- Quick Stats -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div v-for="stat in stats" :key="stat.label"
                 class="bg-white p-8 rounded-3xl border border-outline-variant/10 shadow-sm relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-1 h-full" :class="stat.color"></div>
                 <div class="flex justify-between items-start mb-4">
                   <p class="text-[10px] font-bold text-secondary/40 uppercase tracking-widest">{{ stat.label }}</p>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded" :class="stat.trendClass">{{ stat.trend
-                  }}</span>
                 </div>
                 <div class="flex items-baseline">
                   <span class="text-3xl font-serif text-on-surface">{{ stat.value }}</span>
-                  <span v-if="stat.unit" class="text-xs text-secondary/40 ml-1">{{ stat.unit }}</span>
                 </div>
               </div>
             </div>
 
-            <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
-              <!-- Left: Audit Stream -->
-              <div class="xl:col-span-8 space-y-6">
-                <div class="flex items-center justify-between px-2">
-                  <h3 class="font-serif text-xl flex items-center">
-                    <InboxIcon class="w-5 h-5 mr-3 text-primary" /> 待办审核
-                  </h3>
-                </div>
-                <div class="space-y-4">
-                  <div v-if="!submissionList.length" class="text-center py-8 text-secondary/40 text-xs">暂无待处理投稿</div>
-                  <div v-for="item in submissionList.slice(0, 1)" :key="item.id"
-                    class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
-                    <div class="flex flex-col md:flex-row gap-6">
-                      <img v-if="item.image" :src="item.image" class="w-full md:w-32 h-24 object-cover rounded-xl"
-                        referrerpolicy="no-referrer" />
-                      <div class="flex-grow">
-                        <h4 class="font-bold text-sm mb-1">{{ item.title }}</h4>
-                        <p class="text-[10px] text-secondary/40 mb-4">{{ item.author }} | {{ item.time }}</p>
-                        <div class="flex gap-2">
-                          <button @click="quickApprove(item.id)"
-                            class="px-4 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">快速通过</button>
-                          <button @click="activeTab = 'audit'"
-                            class="px-4 py-1.5 bg-surface text-secondary text-[10px] font-bold rounded-lg border border-outline-variant/20">全部审核</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <div class="space-y-6">
+              <div class="flex items-center justify-between px-2">
+                <h3 class="font-serif text-xl flex items-center">
+                  <InboxIcon class="w-5 h-5 mr-3 text-primary" /> 待办审核
+                </h3>
               </div>
-              <!-- Right: System Health -->
-              <div class="xl:col-span-4 bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
-                <h3 class="font-serif text-lg mb-6">系统健康度</h3>
-                <div class="space-y-6">
-                  <div v-for="i in 3" :key="i" class="flex items-center justify-between">
-                    <span class="text-xs text-secondary/60">节点 {{ i }} 负载</span>
-                    <div class="w-32 h-1 bg-secondary/5 rounded-full">
-                      <div class="h-full bg-primary" :style="{ width: (30 + i * 15) + '%' }"></div>
+              <div class="space-y-4">
+                <div v-if="!submissionList.length" class="text-center py-8 text-secondary/40 text-xs">暂无待处理投稿</div>
+                <div v-for="item in submissionList.slice(0, 3)" :key="item.id"
+                  class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
+                  <div class="flex flex-col md:flex-row gap-6">
+                    <img v-if="item.image" :src="item.image" class="w-full md:w-32 h-24 object-cover rounded-xl"
+                      referrerpolicy="no-referrer" />
+                    <div class="flex-grow">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded" :class="item.source === 'forum' ? 'bg-blue-100 text-blue-700' : 'bg-tertiary/10 text-tertiary'">{{ item.source === 'forum' ? '论坛帖子' : '共创投稿' }}</span>
+                        <h4 class="font-bold text-sm">{{ item.title }}</h4>
+                      </div>
+                      <p class="text-[10px] text-secondary/40 mb-4">{{ item.author }} | {{ item.time }}</p>
+                      <div class="flex gap-2">
+                        <button @click="activeTab = 'audit'"
+                          class="px-4 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">前往审核</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -119,54 +102,118 @@
 
           <!-- Audit View -->
           <div v-if="activeTab === 'audit'" class="space-y-6">
-            <div class="flex gap-3">
-              <button v-for="f in auditFilters" :key="f.value"
-                @click="() => { auditStatusFilter = f.value; fetchSubmissions(); }"
+            <!-- Source filter -->
+            <div class="flex gap-3 mb-2">
+              <button v-for="s in auditSourceFilters" :key="s.value"
+                @click="auditSourceFilter = s.value"
                 class="px-5 py-2 rounded-xl text-xs font-bold transition-all"
-                :class="auditStatusFilter === f.value ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white border border-outline-variant/20 text-secondary/60 hover:bg-surface'">{{
-                  f.label }}</button>
+                :class="auditSourceFilter === s.value ? 'bg-on-surface text-white shadow-md' : 'bg-white border border-outline-variant/20 text-secondary/60 hover:bg-surface'">{{ s.label }}</button>
             </div>
 
-            <div v-if="loadingSubmissions" class="py-16 text-center text-sm text-secondary/40 font-bold">鍔犺浇涓?..</div>
-
-            <div v-else-if="!submissionList.length" class="text-center py-16 text-secondary/40">
-              <InboxIcon class="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p class="font-bold text-sm">暂无{{auditFilters.find(f => f.value === auditStatusFilter)?.label}}内容</p>
-            </div>
-
-            <template v-else>
-              <div v-for="item in submissionList" :key="item.id"
-                class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all">
-                <div class="flex flex-col md:flex-row gap-6">
-                  <img v-if="item.image" :src="item.image" class="w-full md:w-40 h-32 object-cover rounded-2xl"
-                    referrerpolicy="no-referrer" />
-                  <div v-else class="w-full md:w-40 h-32 bg-surface rounded-2xl flex items-center justify-center">
-                    <ImageIcon class="w-8 h-8 text-secondary/20" />
-                  </div>
-                  <div class="flex-grow">
-                    <div class="flex justify-between items-start mb-2">
-                      <h4 class="font-bold text-on-surface">{{ item.title }}</h4>
-                      <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase"
-                        :class="statusBadgeClass(item.raw_status)">{{ item.status }}</span>
+            <!-- Forum Posts Section -->
+            <div v-if="auditSourceFilter === 'all' || auditSourceFilter === 'forum'">
+              <h3 class="font-serif text-lg mb-4 flex items-center">
+                <BookOpenIcon class="w-4 h-4 mr-2 text-blue-600" /> 论坛帖子
+              </h3>
+              <div v-if="loadingForumPosts" class="py-8 text-center text-sm text-secondary/40 font-bold">加载中...</div>
+              <div v-else-if="!forumPostList.length" class="text-center py-8 text-secondary/40">
+                <InboxIcon class="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p class="font-bold text-sm">暂无论坛帖子</p>
+              </div>
+              <div v-else class="space-y-4">
+                <div v-for="item in forumPostList" :key="'forum-' + item.id"
+                  class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all">
+                  <div class="flex flex-col md:flex-row gap-6">
+                    <img v-if="item.cover" :src="item.cover" class="w-full md:w-40 h-32 object-cover rounded-2xl"
+                      referrerpolicy="no-referrer" />
+                    <div v-else class="w-full md:w-40 h-32 bg-surface rounded-2xl flex items-center justify-center">
+                      <ImageIcon class="w-8 h-8 text-secondary/20" />
                     </div>
-                    <p class="text-[10px] text-secondary/40 mb-4">作者{{ item.author }} | 提交时间{{ item.time }}</p>
-                    <p class="text-xs text-secondary/60 line-clamp-2 leading-relaxed mb-6">{{ item.desc }}</p>
-                    <div v-if="item.raw_status === 'pending'" class="flex gap-3">
-                      <input v-model="feedbackMap[item.id]" type="text" placeholder="输入审核反馈..."
-                        class="flex-grow bg-surface border-none rounded-xl px-4 py-2 text-xs focus:ring-1 focus:ring-primary/20" />
-                      <button @click="auditOne(item.id, 'rejected')"
-                        class="p-2 text-secondary/40 hover:text-error transition-colors">
-                        <XIcon class="w-5 h-5" />
-                      </button>
-                      <button @click="auditOne(item.id, 'approved')"
-                        class="px-6 py-2 bg-primary text-white text-xs font-bold rounded-xl">通过</button>
+                    <div class="flex-grow">
+                      <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">论坛</span>
+                          <h4 class="font-bold text-on-surface">{{ item.title }}</h4>
+                        </div>
+                        <span v-if="item.is_top" class="text-[10px] font-bold px-2 py-0.5 rounded bg-tertiary/10 text-tertiary">置顶</span>
+                      </div>
+                      <p class="text-[10px] text-secondary/40 mb-2">作者 {{ item.author }} | {{ item.category_name }} | {{ item.time }}</p>
+                      <p class="text-xs text-secondary/60 line-clamp-2 leading-relaxed mb-4">{{ item.excerpt }}</p>
+                      <div class="flex items-center gap-4 text-[10px] text-secondary/40">
+                        <span>👁 {{ item.views }}</span>
+                        <span>❤ {{ item.likes }}</span>
+                        <span>💬 {{ item.comment_count }}</span>
+                      </div>
+                      <div class="flex gap-3 mt-4">
+                        <button @click="deleteForumPost(item.id)" class="px-4 py-1.5 text-error text-[10px] font-bold rounded-lg border border-error/20 hover:bg-error/5">删除帖子</button>
+                        <button @click="toggleForumTop(item)" class="px-4 py-1.5 text-[10px] font-bold rounded-lg border border-outline-variant/20" :class="item.is_top ? 'text-secondary/60' : 'text-primary'">{{ item.is_top ? '取消置顶' : '置顶' }}</button>
+                        <button @click="toggleForumEssence(item)" class="px-4 py-1.5 text-[10px] font-bold rounded-lg border border-outline-variant/20" :class="item.is_essence ? 'text-secondary/60' : 'text-primary'">{{ item.is_essence ? '取消精华' : '设为精华' }}</button>
+                      </div>
                     </div>
-                    <p v-else class="text-xs text-secondary/40 italic">{{ item.raw_status === 'approved' ? '✓ 已通过' :
-                      '✕已驳回' }}</p>
                   </div>
                 </div>
               </div>
-            </template>
+            </div>
+
+            <!-- CoCreation Section -->
+            <div v-if="auditSourceFilter === 'all' || auditSourceFilter === 'cocreation'" :class="auditSourceFilter === 'all' ? 'mt-10' : ''">
+              <h3 class="font-serif text-lg mb-4 flex items-center">
+                <StampIcon class="w-4 h-4 mr-2 text-tertiary" /> 共创投稿
+              </h3>
+              <!-- Status sub-filter for cocreation -->
+              <div class="flex gap-3 mb-4">
+                <button v-for="f in cocreationStatusFilters" :key="f.value"
+                  @click="() => { cocreationStatusFilter = f.value; fetchCocreationItems(); }"
+                  class="px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                  :class="cocreationStatusFilter === f.value ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white border border-outline-variant/20 text-secondary/60 hover:bg-surface'">{{ f.label }}</button>
+              </div>
+              <div v-if="loadingCocreation" class="py-8 text-center text-sm text-secondary/40 font-bold">加载中...</div>
+              <div v-else-if="!cocreationList.length" class="text-center py-8 text-secondary/40">
+                <InboxIcon class="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p class="font-bold text-sm">暂无{{ cocreationStatusFilters.find(f => f.value === cocreationStatusFilter)?.label }}投稿</p>
+              </div>
+              <div v-else class="space-y-4">
+                <div v-for="item in cocreationList" :key="'cc-' + item.id"
+                  class="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm hover:shadow-md transition-all">
+                  <div class="flex flex-col md:flex-row gap-6">
+                    <img v-if="item.cover" :src="item.cover" class="w-full md:w-40 h-32 object-cover rounded-2xl"
+                      referrerpolicy="no-referrer" />
+                    <div v-else class="w-full md:w-40 h-32 bg-surface rounded-2xl flex items-center justify-center">
+                      <ImageIcon class="w-8 h-8 text-secondary/20" />
+                    </div>
+                    <div class="flex-grow">
+                      <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center gap-2">
+                          <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-tertiary/10 text-tertiary">共创</span>
+                          <h4 class="font-bold text-on-surface">{{ item.title }}</h4>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded" :class="cocreationBadgeClass(item.status)">{{ item.status_display }}</span>
+                      </div>
+                      <p class="text-[10px] text-secondary/40 mb-2">作者 {{ item.author }} | 主材 {{ item.material }}</p>
+                      <p class="text-xs text-secondary/60 line-clamp-2 leading-relaxed mb-4">{{ item.desc }}</p>
+                      <div class="flex items-center gap-4 text-[10px] text-secondary/40 mb-4">
+                        <span>❤ {{ item.likes }}</span>
+                        <span>进度 {{ item.progress_percent }}%</span>
+                      </div>
+                      <div v-if="item.status === 'submitted'" class="flex gap-3">
+                        <button @click="auditCocreation(item.id, 'reviewing', 25)" class="px-4 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">通过初审</button>
+                        <button @click="auditCocreation(item.id, 'rejected', 0)" class="px-4 py-1.5 text-error text-[10px] font-bold rounded-lg border border-error/20 hover:bg-error/5">驳回</button>
+                      </div>
+                      <div v-else-if="item.status === 'reviewing'" class="flex gap-3">
+                        <button @click="auditCocreation(item.id, 'sampling', 50)" class="px-4 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">进入打样</button>
+                      </div>
+                      <div v-else-if="item.status === 'sampling'" class="flex gap-3">
+                        <button @click="auditCocreation(item.id, 'producing', 75)" class="px-4 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">进入投产</button>
+                      </div>
+                      <div v-else-if="item.status === 'producing'" class="flex gap-3">
+                        <button @click="auditCocreation(item.id, 'adopted', 100)" class="px-4 py-1.5 bg-green-600 text-white text-[10px] font-bold rounded-lg">正式采纳</button>
+                      </div>
+                      <p v-else class="text-xs text-secondary/40 italic">{{ item.status === 'adopted' ? '✓ 已采纳' : item.status === 'rejected' ? '✕ 已驳回' : '' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Users & Moderators View -->
@@ -234,36 +281,6 @@
                   </tr>
                 </tbody>
               </table>
-            </div>
-          </div>
-
-          <!-- AI Config View -->
-          <div v-if="activeTab === 'ai'" class="max-w-2xl space-y-8">
-            <div class="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
-              <h3 class="font-serif text-lg mb-6 flex items-center">
-                <ShieldCheckIcon class="w-5 h-5 mr-3 text-primary" /> AI 配置管理
-              </h3>
-              <div class="space-y-6">
-                <div class="flex flex-wrap gap-2">
-                  <span v-for="word in keywords" :key="word"
-                    class="px-4 py-2 bg-surface rounded-xl text-xs flex items-center font-bold">
-                    {{ word }}
-                    <XIcon class="ml-2 w-3 h-3 text-secondary/20 cursor-pointer hover:text-error" />
-                  </span>
-                  <button
-                    class="px-4 py-2 border border-dashed border-outline-variant/40 rounded-xl text-xs font-bold text-primary hover:bg-primary/5 transition-all">+
-                    添加关键词</button>
-                </div>
-                <div class="pt-6 border-t border-outline-variant/10">
-                  <label
-                    class="text-[10px] font-bold text-secondary/40 uppercase tracking-widest block mb-4">自动检测敏感度</label>
-                  <input type="range" class="w-full accent-primary" min="1" max="100" value="75" />
-                  <div class="flex justify-between mt-2 text-[10px] font-bold text-secondary/40">
-                    <span>低</span>
-                    <span>高</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -773,73 +790,139 @@ const menuItems = [
   { id: 'users', name: '用户管理', icon: UsersIcon },
 ];
 const configItems = [
-  { id: 'ai', name: 'AI 监管', icon: ShieldCheckIcon },
   { id: 'quiz', name: '题库管理', icon: BookOpenIcon },
   { id: 'monuments-mgmt', name: '古建列表', icon: LandmarkIcon },
   { id: 'stamp-mgmt', name: '印章管理', icon: StampIcon },
   { id: 'articles-mgmt', name: '古建资料', icon: FileTextIcon },
 ];
 
-const stats = [
-  { label: '今日新增投稿', value: '1,284', trend: '+12.5%', trendClass: 'bg-green-100 text-green-700', color: 'bg-primary' },
-  { label: '待审核任务', value: '42', trend: '紧急', trendClass: 'bg-red-100 text-red-700', color: 'bg-tertiary' },
-  { label: '活跃工匠数', value: '8,912', trend: '稳定', trendClass: 'bg-blue-100 text-blue-700', color: 'bg-on-surface' },
-  { label: 'AI 拦截率', value: '156', unit: '次/日', trend: '99.8%', trendClass: 'bg-green-100 text-green-700', color: 'bg-primary' },
-];
+const stats = ref([
+  { label: '今日新增投稿', value: '-', color: 'bg-primary' },
+  { label: '待审核任务', value: '-', color: 'bg-tertiary' },
+  { label: '活跃工匠数', value: '-', color: 'bg-on-surface' },
+]);
 const keywords = ['历史争议', '恶意广告', '违规外链'];
 
-const auditFilters = [
-  { value: 'pending', label: '待处理' },
-  { value: 'approved', label: '已通过' },
+const auditSourceFilters = [
+  { value: 'all', label: '全部' },
+  { value: 'forum', label: '论坛帖子' },
+  { value: 'cocreation', label: '共创投稿' },
+];
+const auditSourceFilter = ref('all');
+
+// Forum posts in audit
+const forumPostList = ref<any[]>([]);
+const loadingForumPosts = ref(false);
+
+const fetchForumPosts = async () => {
+  loadingForumPosts.value = true;
+  try {
+    const res = await service.get('/forum/posts/') as any;
+    forumPostList.value = res.results || res;
+  } catch { forumPostList.value = []; }
+  finally { loadingForumPosts.value = false; }
+};
+
+const deleteForumPost = async (id: number) => {
+  if (!confirm('确定删除该帖子？')) return;
+  try {
+    await service.delete(`/forum/posts/${id}/`);
+    fetchForumPosts();
+  } catch { alert('删除失败'); }
+};
+
+const toggleForumTop = async (item: any) => {
+  try {
+    await service.patch(`/forum/posts/${item.id}/`, { is_top: !item.is_top });
+    fetchForumPosts();
+  } catch { alert('操作失败'); }
+};
+
+const toggleForumEssence = async (item: any) => {
+  try {
+    await service.patch(`/forum/posts/${item.id}/`, { is_essence: !item.is_essence });
+    fetchForumPosts();
+  } catch { alert('操作失败'); }
+};
+
+// CoCreation items in audit
+const cocreationList = ref<any[]>([]);
+const loadingCocreation = ref(false);
+const cocreationStatusFilters = [
+  { value: '', label: '全部' },
+  { value: 'submitted', label: '待审核' },
+  { value: 'reviewing', label: '初审中' },
+  { value: 'sampling', label: '打样中' },
+  { value: 'producing', label: '试产中' },
+  { value: 'adopted', label: '已采纳' },
   { value: 'rejected', label: '已驳回' },
 ];
-const reverseStatusMap: Record<string, string> = {
-  '待处理': 'pending', '已通过': 'approved', '已驳回': 'rejected',
+const cocreationStatusFilter = ref('');
+
+const fetchCocreationItems = async () => {
+  loadingCocreation.value = true;
+  try {
+    const params: any = {};
+    if (cocreationStatusFilter.value) params.status = cocreationStatusFilter.value;
+    const res = await service.get('/cocreation/items/', { params }) as any;
+    cocreationList.value = res.results || res;
+  } catch { cocreationList.value = []; }
+  finally { loadingCocreation.value = false; }
 };
+
+const cocreationBadgeClass = (status: string) => {
+  if (status === 'submitted') return 'bg-tertiary/10 text-tertiary';
+  if (status === 'adopted') return 'bg-green-100 text-green-700';
+  if (status === 'rejected') return 'bg-red-100 text-red-700';
+  return 'bg-blue-100 text-blue-700';
+};
+
+const auditCocreation = async (id: number, decision: string, progress: number) => {
+  try {
+    await service.post(`/cocreation/items/${id}/audit/`, {
+      status: decision,
+      progress_percent: progress,
+    });
+    fetchCocreationItems();
+    fetchDashboardStats();
+  } catch { alert('操作失败'); }
+};
+
+// Old submissions (monument submissions) for dashboard preview
 const submissionList = ref<any[]>([]);
 const loadingSubmissions = ref(false);
-const auditStatusFilter = ref('pending');
 const feedbackMap = ref<Record<number, string>>({});
 
 const fetchSubmissions = async () => {
-  loadingSubmissions.value = true;
+  // Combine forum posts + cocreation for dashboard preview
+  const items: any[] = [];
   try {
-    const res = await service.get('/monuments/submissions/', {
-      params: { status: auditStatusFilter.value },
-    }) as any;
-    submissionList.value = (res.results || res).map((item: any) => ({
-      ...item,
-      raw_status: reverseStatusMap[item.status] ?? item.status,
-    }));
-  } finally {
-    loadingSubmissions.value = false;
-  }
+    const forumRes = await service.get('/forum/posts/', { params: { ordering: '-created_at' } }) as any;
+    const forumPosts = (forumRes.results || forumRes).slice(0, 3);
+    for (const p of forumPosts) {
+      items.push({ id: 'f-' + p.id, title: p.title, author: p.author, time: p.time, image: p.cover, source: 'forum' });
+    }
+  } catch {}
+  try {
+    const ccRes = await service.get('/cocreation/items/', { params: { status: 'submitted' } }) as any;
+    const ccItems = (ccRes.results || ccRes).slice(0, 3);
+    for (const c of ccItems) {
+      items.push({ id: 'c-' + c.id, title: c.title, author: c.author, time: '', image: c.cover, source: 'cocreation' });
+    }
+  } catch {}
+  submissionList.value = items;
 };
 
-const statusBadgeClass = (rawStatus: string) => {
-  if (rawStatus === 'pending') return 'bg-tertiary/10 text-tertiary';
-  if (rawStatus === 'approved') return 'bg-green-100 text-green-700';
-  return 'bg-red-100 text-red-700';
-};
-
-const auditOne = async (id: number, decision: string) => {
+const fetchDashboardStats = async () => {
   try {
-    await service.post(`/monuments/submissions/${id}/audit/`, {
-      status: decision,
-      feedback: feedbackMap.value[id] || '',
-    });
-    fetchSubmissions();
-  } catch {
-    alert('操作失败');
-  }
-};
-
-const quickApprove = async (id: number) => {
-  try {
-    await service.post(`/monuments/submissions/${id}/quick-approve/`);
-    fetchSubmissions();
-  } catch {
-    alert('操作失败');
+    const res = await service.get('/system/dashboard/') as any;
+    stats.value = [
+      { label: '今日新增投稿', value: String(res.today_submissions ?? 0), color: 'bg-primary' },
+      { label: '待审核任务', value: String(res.pending_audit ?? 0), color: 'bg-tertiary' },
+      { label: '活跃工匠数', value: String(res.active_users ?? 0), color: 'bg-on-surface' },
+    ];
+  } catch (e) {
+    console.error('Failed to fetch dashboard stats:', e);
   }
 };
 
@@ -1036,7 +1119,10 @@ const deleteQuiz = async (id: number) => {
 };
 
 onMounted(() => {
+  fetchDashboardStats();
   fetchSubmissions();
+  fetchForumPosts();
+  fetchCocreationItems();
   fetchUsers();
   fetchQuizList();
   fetchMonuments();

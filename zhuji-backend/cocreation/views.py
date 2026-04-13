@@ -69,6 +69,9 @@ class CoCreationItemViewSet(viewsets.ModelViewSet):
         featured = self.request.query_params.get('featured')
         if featured == 'true':
             qs = qs.filter(featured=True)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
         return qs
 
     def perform_create(self, serializer):

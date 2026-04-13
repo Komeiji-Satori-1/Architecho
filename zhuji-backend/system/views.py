@@ -11,7 +11,6 @@ from .models import SensitiveWord, AIConfig, AIInterceptionLog, NodeStatus
 from .serializers import (
     SensitiveWordSerializer,
     AIConfigSerializer,
-    AIInterceptionLogSerializer,
     NodeStatusSerializer,
     DashboardStatsSerializer,
 )
@@ -35,8 +34,6 @@ class DashboardStatsView(APIView):
       - today_submissions : 今日新增投稿数
       - pending_audit     : 待审核任务数
       - active_users      : 活跃（未封禁）用户数
-      - ai_intercept_today: 今日 AI 拦截次数
-      - node_loads        : 最新 3 个节点负载快照
     """
     permission_classes = [IsAdminUser]
 
@@ -53,29 +50,10 @@ class DashboardStatsView(APIView):
 
         active_users = User.objects.filter(is_active=True).count()
 
-        ai_intercept_today = AIInterceptionLog.objects.filter(
-            intercepted_at__date=today
-        ).count()
-
-        # 每个节点取最新一条记录
-        node_ids = (
-            NodeStatus.objects.values('node_index')
-            .distinct()
-            .order_by('node_index')
-            .values_list('node_index', flat=True)[:3]
-        )
-        node_loads = []
-        for nid in node_ids:
-            latest = NodeStatus.objects.filter(node_index=nid).order_by('-recorded_at').first()
-            if latest:
-                node_loads.append(latest)
-
         data = {
             'today_submissions': today_submissions,
             'pending_audit': pending_audit,
             'active_users': active_users,
-            'ai_intercept_today': ai_intercept_today,
-            'node_loads': node_loads,
         }
         serializer = DashboardStatsSerializer(data)
         return Response(serializer.data)
