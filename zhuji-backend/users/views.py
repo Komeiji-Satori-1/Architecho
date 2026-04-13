@@ -1,10 +1,17 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password, check_password
+from django.core.cache import cache
+from django.core.mail import send_mail
+from django.conf import settings
 from django.db.models import F, Value, FloatField, Count, ExpressionWrapper
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes as perm_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
+import hashlib
+import secrets
 from .models import User
 from .serializers import UserListSerializer, UserDetailSerializer, UserProfileSerializer
 
@@ -72,20 +79,23 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class LoginView(APIView):
-    """登录接口：POST /api/users/login/ → 返回 JWT access + refresh token。"""
+    """登录接口：POST /api/users/login/ → 返回 JWT access + refresh token。
+    前端传入的是 SHA-256(password) 哈希值，后端用它作为密码进行认证。
+    """
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []  # 跳过 SessionAuthentication 避免 CSRF
 
     def post(self, request):
         username = request.data.get('username', '').strip()
-        password = request.data.get('password', '')
+        password_hash = request.data.get('password', '')
 
-        if not username or not password:
+        if not username or not password_hash:
             return Response(
                 {'detail': '请填写账号和密码。'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(request, username=username, password=password_hash)
         if user is None:
             return Response(
                 {'detail': '账号或密码错误。'},
@@ -120,24 +130,33 @@ class MeView(APIView):
         serializer = UserProfileSerializer(user, context={'request': request})
         return Response(serializer.data)
 class RegisterView(APIView):
-    """注册接口：POST /api/users/register/"""
+    """注册接口：POST /api/users/register/
+    前端传入的是 SHA-256(password) 哈希值。
+    """
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []  # 跳过 SessionAuthentication 避免 CSRF
 
     def post(self, request):
         username = request.data.get('username', '').strip()
-        password = request.data.get('password', '')
+        password_hash = request.data.get('password', '')
         password_confirm = request.data.get('password_confirm', '')
+        email = request.data.get('email', '').strip()
 
-        if not username or not password:
+        if not username or not password_hash:
             return Response({'detail': '请填写账号和密码。'}, status=status.HTTP_400_BAD_REQUEST)
-        if password != password_confirm:
+        if password_hash != password_confirm:
             return Response({'detail': '两次密码输入不一致。'}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(username=username).exists():
             return Response({'detail': '该账号已被注册。'}, status=status.HTTP_400_BAD_REQUEST)
-        if len(password) < 6:
+        if len(password_hash) < 6:
             return Response({'detail': '密码长度不能少于6位。'}, status=status.HTTP_400_BAD_REQUEST)
+        if email and User.objects.filter(email=email).exists():
+            return Response({'detail': '该邮箱已被注册。'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(username=username, password=password)
+        user = User.objects.create_user(username=username, password=password_hash)
+        if email:
+            user.email = email
+            user.save(update_fields=['email'])
         refresh = RefreshToken.for_user(user)
         return Response({
             'access': str(refresh.access_token),
@@ -150,6 +169,78 @@ class RegisterView(APIView):
                 'level_title': user.level_title,
             },
         }, status=status.HTTP_201_CREATED)
+
+
+class ForgotPasswordRequestView(APIView):
+    """忘记密码 - 第一步：发送验证码到邮箱。
+    POST /api/users/forgot-password/request/
+    body: { email }
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response({'detail': '请填写邮箱地址。'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response({'detail': '该邮箱未注册。'}, status=status.HTTP_404_NOT_FOUND)
+
+        # 生成 6 位随机验证码，存入缓存，10 分钟过期
+        code = f'{secrets.randbelow(1000000):06d}'
+        cache_key = f'pwd_reset:{email}'
+        cache.set(cache_key, code, timeout=600)  # 10分钟
+
+        try:
+            send_mail(
+                subject='【筑迹】密码重置验证码',
+                message=f'您的密码重置验证码为：{code}\n\n该验证码 10 分钟内有效，请勿泄露给他人。',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception:
+            return Response({'detail': '邮件发送失败，请稍后重试。'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'detail': '验证码已发送至您的邮箱。'})
+
+
+class ForgotPasswordResetView(APIView):
+    """忘记密码 - 第二步：验证码 + 新密码。
+    POST /api/users/forgot-password/reset/
+    body: { email, code, new_password }
+    new_password 是前端 SHA-256 哈希后的值。
+    """
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        code = request.data.get('code', '').strip()
+        new_password_hash = request.data.get('new_password', '')
+
+        if not email or not code or not new_password_hash:
+            return Response({'detail': '请填写完整信息。'}, status=status.HTTP_400_BAD_REQUEST)
+
+        cache_key = f'pwd_reset:{email}'
+        cached_code = cache.get(cache_key)
+
+        if cached_code is None:
+            return Response({'detail': '验证码已过期，请重新获取。'}, status=status.HTTP_400_BAD_REQUEST)
+        if cached_code != code:
+            return Response({'detail': '验证码错误。'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response({'detail': '用户不存在。'}, status=status.HTTP_404_NOT_FOUND)
+
+        user.set_password(new_password_hash)
+        user.save(update_fields=['password'])
+        cache.delete(cache_key)  # 用后即删
+
+        return Response({'detail': '密码重置成功，请重新登录。'})
 
 
 @api_view(['GET'])

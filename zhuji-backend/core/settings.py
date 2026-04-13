@@ -195,3 +195,29 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),   # 当前改为1天
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # refresh token 30天
 }
+
+# -------------------------------------------------------
+# 缓存配置（忘记密码验证码等）
+# 开发环境使用本地内存缓存，生产环境建议切换为 Redis
+# -------------------------------------------------------
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'architecho-cache',
+    }
+}
+
+# -------------------------------------------------------
+# 邮件配置（忘记密码、通知等）
+# 开发环境使用控制台后端（邮件打印到终端），
+# 生产环境请切换为 SMTP 后端并填入真实配置
+# -------------------------------------------------------
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# 生产环境 SMTP 配置示例（取消注释并填写）：
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.qq.com'
+# EMAIL_PORT = 465
+# EMAIL_USE_SSL = True
+# EMAIL_HOST_USER = 'your_email@qq.com'
+# EMAIL_HOST_PASSWORD = 'your_smtp_authorization_code'
+DEFAULT_FROM_EMAIL = '筑迹 <noreply@architecho.com>'
