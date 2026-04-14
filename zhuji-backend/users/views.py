@@ -94,7 +94,6 @@ class LoginView(APIView):
                 {'detail': '请填写账号和密码。'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         user = authenticate(request, username=username, password=password_hash)
         if user is None:
             return Response(
@@ -130,11 +129,9 @@ class MeView(APIView):
         serializer = UserProfileSerializer(user, context={'request': request})
         return Response(serializer.data)
 class RegisterView(APIView):
-    """注册接口：POST /api/users/register/
-    前端传入的是 SHA-256(password) 哈希值。
-    """
+    """注册接口：接收前端 SHA-256 哈希值并存储"""
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # 跳过 SessionAuthentication 避免 CSRF
+    authentication_classes = []
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -142,34 +139,41 @@ class RegisterView(APIView):
         password_confirm = request.data.get('password_confirm', '')
         email = request.data.get('email', '').strip()
 
+        # 1. 基础校验
         if not username or not password_hash:
             return Response({'detail': '请填写账号和密码。'}, status=status.HTTP_400_BAD_REQUEST)
+        
         if password_hash != password_confirm:
             return Response({'detail': '两次密码输入不一致。'}, status=status.HTTP_400_BAD_REQUEST)
+
         if User.objects.filter(username=username).exists():
             return Response({'detail': '该账号已被注册。'}, status=status.HTTP_400_BAD_REQUEST)
-        if len(password_hash) < 6:
-            return Response({'detail': '密码长度不能少于6位。'}, status=status.HTTP_400_BAD_REQUEST)
-        if email and User.objects.filter(email=email).exists():
-            return Response({'detail': '该邮箱已被注册。'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = User.objects.create_user(username=username, password=password_hash)
-        if email:
-            user.email = email
-            user.save(update_fields=['email'])
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'avatar': None,
-                'role': user.role,
-                'level_title': user.level_title,
-            },
-        }, status=status.HTTP_201_CREATED)
+        # 2. 创建用户
+        try:
+            # 直接使用 create_user，它内部会自动调用 set_password
+            user = User.objects.create_user(
+                username=username, 
+                password=password_hash, 
+                email=email
+            )
+            
+            # 3. 返回成功响应及 Token
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'role': user.role,
+                    'level_title': user.level_title,
+                },
+            }, status=status.HTTP_201_CREATED)
 
+        except Exception:
+            # 生产环境建议只返回模糊的错误提示
+            return Response({'detail': '注册失败，请稍后再试。'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ForgotPasswordRequestView(APIView):
     """忘记密码 - 第一步：发送验证码到邮箱。
