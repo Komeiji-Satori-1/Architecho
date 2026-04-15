@@ -103,6 +103,16 @@ class ForumPostViewSet(viewsets.ModelViewSet):
                 post.likes += 1
                 post.save(update_fields=['likes'])
                 print(f"[DEBUG-Interact] New like created, total likes: {post.likes}")
+                # 通知帖子作者（不通知自己）
+                if post.author != request.user:
+                    from users.models import Notification
+                    Notification.objects.create(
+                        user=post.author,
+                        title=f'{request.user.username} 赞了你的帖子',
+                        content=f'《{post.title}》获得了一个新的点赞',
+                        notification_type=Notification.TYPE_LIKE,
+                        triggered_by=request.user,
+                    )
             else:
                 print(f"[DEBUG-Interact] Like already exists")
             return Response({'likes': post.likes, 'action': 'liked', 'is_liked': True})
@@ -192,7 +202,37 @@ class CommentViewSet(viewsets.ModelViewSet):
                 parent = Comment.objects.get(id=parent_id)
             except Comment.DoesNotExist:
                 pass
-        serializer.save(author=self.request.user, parent=parent)
+        comment = serializer.save(author=self.request.user, parent=parent)
+        self._send_comment_notification(comment, parent)
+
+    def _send_comment_notification(self, comment, parent):
+        """评论/回复创建后向帖子作者或被回复的评论作者发送通知。"""
+        from users.models import Notification
+        actor = comment.author
+        post = comment.post
+        if parent is not None:
+            # 回复通知：通知被回复评论的作者
+            recipient = parent.author
+            if recipient == actor:
+                return
+            title = f'{actor.username} 回复了你的评论'
+            content = f'在帖子《{post.title}》中："{comment.text[:50]}"'
+            ntype = Notification.TYPE_REPLY
+        else:
+            # 评论通知：通知帖子作者
+            recipient = post.author
+            if recipient == actor:
+                return
+            title = f'{actor.username} 评论了你的帖子'
+            content = f'在帖子《{post.title}》中："{comment.text[:50]}"'
+            ntype = Notification.TYPE_REPLY
+        Notification.objects.create(
+            user=recipient,
+            title=title,
+            content=content,
+            notification_type=ntype,
+            triggered_by=actor,
+        )
 
     def destroy(self, request, *args, **kwargs):
         comment = self.get_object()
@@ -221,6 +261,16 @@ class CommentViewSet(viewsets.ModelViewSet):
             comment.likes += 1
             comment.save(update_fields=['likes'])
             print(f"[DEBUG-CommentLike] New like created, total likes: {comment.likes}")
+            # 通知评论作者（不通知自己）
+            if comment.author != request.user:
+                from users.models import Notification
+                Notification.objects.create(
+                    user=comment.author,
+                    title=f'{request.user.username} 赞了你的评论',
+                    content=f'你在帖子《{comment.post.title}》中的评论获得了一个新的点赞',
+                    notification_type=Notification.TYPE_LIKE,
+                    triggered_by=request.user,
+                )
         else:
             print(f"[DEBUG-CommentLike] Like already exists")
         return Response({'likes': comment.likes, 'is_liked': True})

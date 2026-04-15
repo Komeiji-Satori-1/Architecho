@@ -205,8 +205,9 @@ class ForgotPasswordRequestView(APIView):
                 recipient_list=[email],
                 fail_silently=False,
             )
-        except Exception:
-            return Response({'detail': '邮件发送失败，请稍后重试。'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            print(f"邮件发送具体错误: {e}") # 在终端看这个输出
+            return Response({'detail': str(e)}, status=500)
 
         return Response({'detail': '验证码已发送至您的邮箱。'})
 

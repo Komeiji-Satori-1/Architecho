@@ -179,11 +179,11 @@
             
             <div class="grid grid-cols-2 gap-12">
               <div>
-                <p class="text-4xl font-serif text-on-surface mb-2">450+</p>
+                <p class="text-4xl font-serif text-on-surface mb-2">30+</p>
                 <p class="text-xs text-secondary/40 font-bold uppercase tracking-widest">已录入古建</p>
               </div>
               <div>
-                <p class="text-4xl font-serif text-on-surface mb-2">12k</p>
+                <p class="text-4xl font-serif text-on-surface mb-2">13</p>
                 <p class="text-xs text-secondary/40 font-bold uppercase tracking-widest">社区筑匠</p>
               </div>
             </div>

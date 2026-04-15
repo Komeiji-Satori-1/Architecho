@@ -74,7 +74,7 @@
               <div class="flex justify-between items-end mb-8">
                 <div>
                   <h3 class="font-serif text-xl mb-1">探索足迹</h3>
-                  <p class="text-[10px] text-secondary/40 font-bold">遍及 14 个省市的古建筑考察</p>
+                  <p class="text-[10px] text-secondary/40 font-bold">各类型古建筑探访分布</p>
                 </div>
                 <div class="text-right">
                   <span class="text-3xl font-serif text-on-surface">{{ footprintCount }}</span>
@@ -82,7 +82,7 @@
                 </div>
               </div>
               
-              <div class="space-y-6">
+              <div class="space-y-6 mb-8">
                 <div v-for="stat in footprintStats" :key="stat.label">
                   <div class="flex justify-between text-[10px] font-bold text-secondary/60 uppercase mb-2">
                     <span>{{ stat.label }}</span>
@@ -93,6 +93,25 @@
                   </div>
                 </div>
               </div>
+
+              <div v-if="footprintMonuments.length > 0">
+                <p class="text-[10px] font-bold text-secondary/40 uppercase tracking-widest mb-4">已探访古建</p>
+                <div class="flex flex-wrap gap-2">
+                  <div
+                    v-for="m in footprintMonuments"
+                    :key="m.id"
+                    class="flex items-center gap-2 px-3 py-1.5 bg-surface rounded-xl border border-outline-variant/10"
+                  >
+                    <img v-if="m.cover" :src="m.cover" class="w-5 h-5 rounded object-cover flex-shrink-0" />
+                    <div v-else class="w-5 h-5 rounded bg-secondary/10 flex-shrink-0"></div>
+                    <div>
+                      <p class="text-[11px] font-bold text-on-surface leading-none">{{ m.name }}</p>
+                      <p v-if="m.location" class="text-[9px] text-secondary/40 mt-0.5">{{ m.location }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-[10px] text-secondary/30 text-center py-4">暂无足迹，去探访古建或作答题目吧</p>
             </div>
           </div>
 
@@ -191,6 +210,7 @@ import {
   Ticket as TicketIcon,
   Award as AwardIcon,
   LogOut as LogOutIcon,
+  ThumbsUp as ThumbsUpIcon,
 } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import request from '../api/request';
@@ -212,6 +232,7 @@ const notificationStyleMap: Record<string, { icon: any; typeBg: string; typeColo
   announcement: { icon: InfoIcon, typeBg: 'bg-tertiary/5', typeColor: 'text-tertiary' },
   badge: { icon: StarIcon, typeBg: 'bg-on-surface/5', typeColor: 'text-on-surface' },
   reward: { icon: GiftIcon, typeBg: 'bg-tertiary/5', typeColor: 'text-tertiary' },
+  like: { icon: ThumbsUpIcon, typeBg: 'bg-secondary/5', typeColor: 'text-secondary' },
 };
 
 const rewardIconMap: Record<string, any> = {
@@ -220,11 +241,14 @@ const rewardIconMap: Record<string, any> = {
   other: GiftIcon,
 };
 
-const footprintStats = [
-  { label: '宫廷建筑', percent: 85 },
-  { label: '园林景观', percent: 42 },
-  { label: '民居建筑', percent: 18 },
-];
+const footprintStats = computed(() => {
+  if (!userProfile.value?.footprint_stats) return [];
+  return userProfile.value.footprint_stats;
+});
+
+const footprintMonuments = computed(() => {
+  return userProfile.value?.footprint_monuments || [];
+});
 
 const stamps = ref([
   { id: 1, name: '故宫 · 角楼', unlocked: true, image: 'https://picsum.photos/seed/s1/200/200' },

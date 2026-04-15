@@ -202,8 +202,7 @@ SIMPLE_JWT = {
 }
 
 if DEBUG:
-    # 本地开发环境：如果你本地没装 Redis，或者想快速调试，使用内存缓存
-    # 如果本地也装了 Redis，可以改成和下面一样的 RedisCache 配置
+
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',

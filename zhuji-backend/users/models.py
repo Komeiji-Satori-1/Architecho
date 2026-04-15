@@ -125,12 +125,14 @@ class Notification(models.Model):
     TYPE_ANNOUNCEMENT = 'announcement'  # 官方公告（InfoIcon, bg-tertiary/5）
     TYPE_BADGE = 'badge'            # 获得勋章（StarIcon, bg-on-surface/5）
     TYPE_REWARD = 'reward'          # 奖励（GiftIcon）
+    TYPE_LIKE = 'like'              # 点赞（ThumbsUpIcon, bg-secondary/5）
 
     TYPE_CHOICES = [
         (TYPE_REPLY, '回复通知'),
         (TYPE_ANNOUNCEMENT, '官方公告'),
         (TYPE_BADGE, '勋章通知'),
         (TYPE_REWARD, '奖励通知'),
+        (TYPE_LIKE, '点赞通知'),
     ]
 
     user = models.ForeignKey(

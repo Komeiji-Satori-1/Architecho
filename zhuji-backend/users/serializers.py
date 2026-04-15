@@ -47,6 +47,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     stamp_count = serializers.SerializerMethodField()
     post_count = serializers.SerializerMethodField()
     cocreation_count = serializers.SerializerMethodField()
+    footprint_count = serializers.SerializerMethodField()
+    footprint_stats = serializers.SerializerMethodField()
+    footprint_monuments = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -55,7 +58,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'level_num', 'level_title', 'level_label',
             'influence_power',
             'quiz_correct_count', 'quiz_total_count', 'quiz_accuracy',
-            'footprint_count',
+            'footprint_count', 'footprint_stats', 'footprint_monuments',
             'notifications', 'rewards',
             'stamp_count', 'post_count', 'cocreation_count',
         ]
@@ -80,6 +83,62 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'cocreations'):
             return obj.cocreations.count()
         return 0
+
+    def get_footprint_count(self, obj):
+        from monuments.models import UserMonumentProgress
+        from quiz.models import UserQuizRecord
+        progress_ids = set(obj.monument_progresses.values_list('monument_id', flat=True))
+        quiz_ids = set(
+            UserQuizRecord.objects.filter(user=obj, question__monument__isnull=False)
+            .values_list('question__monument_id', flat=True)
+        )
+        return len(progress_ids | quiz_ids)
+
+    def get_footprint_stats(self, obj):
+        from monuments.models import UserMonumentProgress
+        from django.db.models import Count
+        CATEGORY_LABEL = {
+            UserMonumentProgress.CATEGORY_PALACE: '宫廷建筑',
+            UserMonumentProgress.CATEGORY_GARDEN: '园林景观',
+            UserMonumentProgress.CATEGORY_FOLK: '民居建筑',
+        }
+        ORDERED_CATS = [
+            UserMonumentProgress.CATEGORY_PALACE,
+            UserMonumentProgress.CATEGORY_GARDEN,
+            UserMonumentProgress.CATEGORY_FOLK,
+        ]
+        total = obj.monument_progresses.count()
+        if total == 0:
+            return [{'label': lbl, 'percent': 0} for lbl in CATEGORY_LABEL.values()]
+        counts = {
+            row['category_type']: row['cnt']
+            for row in obj.monument_progresses.values('category_type').annotate(cnt=Count('id'))
+        }
+        return [
+            {'label': CATEGORY_LABEL[cat], 'percent': round(counts.get(cat, 0) / total * 100)}
+            for cat in ORDERED_CATS
+        ]
+
+    def get_footprint_monuments(self, obj):
+        from monuments.models import Monument, UserMonumentProgress
+        from quiz.models import UserQuizRecord
+        request = self.context.get('request')
+        progress_ids = set(obj.monument_progresses.values_list('monument_id', flat=True))
+        quiz_ids = set(
+            UserQuizRecord.objects.filter(user=obj, question__monument__isnull=False)
+            .values_list('question__monument_id', flat=True)
+        )
+        all_ids = progress_ids | quiz_ids
+        if not all_ids:
+            return []
+        monuments = Monument.objects.filter(id__in=all_ids).only('id', 'name', 'location', 'cover_image')
+        result = []
+        for m in monuments:
+            cover_url = None
+            if m.cover_image and request:
+                cover_url = request.build_absolute_uri(m.cover_image.url)
+            result.append({'id': m.id, 'name': m.name, 'location': m.location, 'cover': cover_url})
+        return result
 
 
 class UserListSerializer(serializers.ModelSerializer):
