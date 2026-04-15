@@ -144,13 +144,33 @@
 
           <!-- Section: Messages -->
           <div v-if="activeSection === 'messages'" class="bg-white rounded-3xl p-10 border border-outline-variant/10 shadow-sm">
-            <h3 class="font-serif text-2xl mb-12 flex items-center">
+            <h3 class="font-serif text-2xl mb-8 flex items-center">
               <MailIcon class="w-6 h-6 mr-4 text-primary" /> 消息中心
             </h3>
 
-            <div class="space-y-6">
+            <!-- Message Category Tabs -->
+            <div class="flex gap-2 mb-8 border-b border-outline-variant/10 pb-4">
+              <button
+                v-for="tab in messageTabs"
+                :key="tab.id"
+                @click="activeMessageTab = tab.id"
+                class="px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                :class="activeMessageTab === tab.id ? 'bg-primary/10 text-primary' : 'text-secondary/50 hover:bg-surface hover:text-secondary'"
+              >
+                <component :is="tab.icon" class="w-4 h-4" />
+                {{ tab.name }}
+                <span
+                  v-if="tab.count > 0"
+                  class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                  :class="activeMessageTab === tab.id ? 'bg-primary/20 text-primary' : 'bg-secondary/10 text-secondary/40'"
+                >{{ tab.count }}</span>
+              </button>
+            </div>
+
+            <!-- Message List -->
+            <div v-if="filteredMessages.length > 0" class="space-y-4">
               <div 
-                v-for="msg in messages" 
+                v-for="msg in filteredMessages" 
                 :key="msg.id"
                 class="flex items-start p-6 rounded-2xl transition-colors hover:bg-surface group relative"
               >
@@ -166,6 +186,10 @@
                   <p class="text-xs text-secondary/60 leading-relaxed">{{ msg.content }}</p>
                 </div>
               </div>
+            </div>
+            <div v-else class="py-16 text-center">
+              <MailIcon class="w-12 h-12 text-secondary/10 mx-auto mb-4" />
+              <p class="text-sm text-secondary/40">暂无{{ activeMessageTab === 'all' ? '' : activeMessageTab === 'like' ? '点赞' : activeMessageTab === 'reply' ? '回复' : '' }}消息</p>
             </div>
           </div>
 
@@ -216,6 +240,7 @@ import { useRouter } from 'vue-router';
 import request from '../api/request';
 
 const activeSection = ref('dashboard');
+const activeMessageTab = ref('all');
 const router = useRouter();
 const userProfile = ref<any>(null);
 const loading = ref(true);
@@ -282,21 +307,45 @@ const quizTotalCount = computed(() => {
 });
 
 const messages = computed(() => {
-  if (!userProfile.value?.notifications) return [];
+  if (!userProfile.value?.notifications) {
+    console.log('[Messages] userProfile.notifications is empty or undefined');
+    return [];
+  }
+  console.log('[Messages] Raw notifications from API:', JSON.stringify(userProfile.value.notifications));
   return userProfile.value.notifications.map((n: any) => {
     const style = notificationStyleMap[n.type] || notificationStyleMap.announcement;
+    console.log(`[Messages] Mapping notification id=${n.id}, type=${n.type}, title=${n.title}, unread=${n.unread}`);
     return {
       id: n.id,
       title: n.title,
       content: n.content,
       time: n.time,
       unread: n.unread,
+      type: n.type,
       icon: style.icon,
       typeBg: style.typeBg,
       typeColor: style.typeColor,
     };
   });
 });
+
+const filteredMessages = computed(() => {
+  if (activeMessageTab.value === 'all') return messages.value;
+  const systemTypes = ['announcement', 'badge', 'reward'];
+  const filtered = messages.value.filter((m: any) => {
+    if (activeMessageTab.value === 'announcement') return systemTypes.includes(m.type);
+    return m.type === activeMessageTab.value;
+  });
+  console.log(`[Messages] Filtering by tab="${activeMessageTab.value}", matched ${filtered.length} of ${messages.value.length}`);
+  return filtered;
+});
+
+const messageTabs = computed(() => [
+  { id: 'all', name: '全部', icon: MailIcon, count: messages.value.length },
+  { id: 'like', name: '收到的赞', icon: ThumbsUpIcon, count: messages.value.filter((m: any) => m.type === 'like').length },
+  { id: 'reply', name: '回复我的', icon: MessageIcon, count: messages.value.filter((m: any) => m.type === 'reply').length },
+  { id: 'announcement', name: '系统通知', icon: InfoIcon, count: messages.value.filter((m: any) => m.type === 'announcement' || m.type === 'badge' || m.type === 'reward').length },
+]);
 
 const rewards = computed(() => {
   if (!userProfile.value?.rewards) return [];
@@ -311,7 +360,10 @@ const rewards = computed(() => {
 const fetchUserProfile = async () => {
   try {
     loading.value = true;
-    const data = await request.get('/api/users/me/');
+    const data = await request.get('/users/me/');
+    console.log('[UserProfile] Full API response:', data);
+    console.log('[UserProfile] Notifications array:', (data as any)?.notifications);
+    console.log('[UserProfile] Rewards array:', (data as any)?.rewards);
     userProfile.value = data;
   } catch (e) {
     console.error('Failed to fetch user profile:', e);
